@@ -178,7 +178,6 @@
 	var/visible = 0.0
 	var/left = null
 	anchored = 1.0
-	flags = TABLEPASS
 
 
 /obj/effect/beam/i_beam/proc/hit()
@@ -261,7 +260,7 @@
 	hit()
 	return
 
-/obj/effect/beam/i_beam/HasEntered(atom/movable/AM as mob|obj)
+/obj/effect/beam/i_beam/Crossed(atom/movable/AM as mob|obj)
 	if(istype(AM, /obj/effect/beam))
 		return
 	spawn(0)

@@ -1,5 +1,5 @@
 /turf/simulated/floor/mech_bay_recharge_floor
-	name = "Mech Bay Recharge Station"
+	name = "mech bay recharge station"
 	icon = 'icons/turf/floors.dmi'
 	icon_state = "recharge_floor"
 	var/obj/machinery/mech_bay_recharge_port/recharge_port
@@ -50,7 +50,7 @@
 
 
 /obj/machinery/mech_bay_recharge_port
-	name = "Mech Bay Power Port"
+	name = "mech bay power port"
 	density = 1
 	anchored = 1
 	icon = 'icons/mecha/mech_bay.dmi'
@@ -130,7 +130,7 @@
 
 
 /obj/machinery/computer/mech_bay_power_console
-	name = "Mech Bay Power Control Console"
+	name = "mech bay power control console"
 	density = 1
 	anchored = 1
 	icon = 'icons/obj/computer.dmi'
@@ -160,24 +160,17 @@
 
 	power_change()
 		if(stat & BROKEN)
-			icon_state = initial(icon_state)+"_broken"
 			if(recharge_port)
 				recharge_port.stop_charge()
-		else if(powered())
-			icon_state = initial(icon_state)
-			stat &= ~NOPOWER
-		else
-			spawn(rand(0, 15))
-				icon_state = initial(icon_state)+"_nopower"
-				stat |= NOPOWER
-				if(recharge_port)
-					recharge_port.stop_charge()
+		else if(!(powered()))
+			if(recharge_port)
+				recharge_port.stop_charge()
+		..()
 
-	set_broken()
-		icon_state = initial(icon_state)+"_broken"
-		stat |= BROKEN
-		if(recharge_port)
-			recharge_port.stop_charge()
+	set_broken() //should never be used, but just in case anyone ever makes these buildable.
+//		if(recharge_port)
+//			recharge_port.stop_charge() Commenting out because this will probably break things.
+		..()
 
 	attack_hand(mob/user as mob)
 		if(..()) return

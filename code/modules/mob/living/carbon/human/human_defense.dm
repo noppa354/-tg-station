@@ -5,39 +5,7 @@ bullet_act
 ex_act
 meteor_act
 emp_act
-
 */
-
-/mob/living/carbon/human/bullet_act(var/obj/item/projectile/P, var/def_zone)
-	if(wear_suit && istype(wear_suit, /obj/item/clothing/suit/armor/laserproof))
-		if(istype(P, /obj/item/projectile/energy) || istype(P, /obj/item/projectile/beam))
-			var/reflectchance = 40 - round(P.damage/3)
-			if(!(def_zone in list("chest", "groin")))
-				reflectchance /= 2
-			if(prob(reflectchance))
-				visible_message("<span class='danger'>The [P.name] gets reflected by [src]'s [wear_suit.name]!</span>", \
-								"<span class='userdanger'>The [P.name] gets reflected by [src]'s [wear_suit.name]!</span>")
-
-				// Find a turf near or on the original location to bounce to
-				if(P.starting)
-					var/new_x = P.starting.x + pick(0, 0, 0, 0, 0, -1, 1, -2, 2)
-					var/new_y = P.starting.y + pick(0, 0, 0, 0, 0, -1, 1, -2, 2)
-					var/turf/curloc = get_turf(src)
-
-					// redirect the projectile
-					P.original = locate(new_x, new_y, P.z)
-					P.starting = curloc
-					P.current = curloc
-					P.firer = src
-					P.yo = new_y - curloc.y
-					P.xo = new_x - curloc.x
-
-				return -1 // complete projectile permutation
-
-	if(check_shields(P.damage, "the [P.name]"))
-		P.on_hit(src, 2)
-		return 2
-	return (..(P , def_zone))
 
 
 /mob/living/carbon/human/getarmor(var/def_zone, var/type)
@@ -47,18 +15,18 @@ emp_act
 	if(def_zone)
 		if(isorgan(def_zone))
 			return checkarmor(def_zone, type)
-		var/datum/limb/affecting = get_organ(ran_zone(def_zone))
+		var/obj/item/organ/limb/affecting = get_organ(ran_zone(def_zone))
 		return checkarmor(affecting, type)
 		//If a specific bodypart is targetted, check how that bodypart is protected and return the value.
 
 	//If you don't specify a bodypart, it checks ALL your bodyparts for protection, and averages out the values
-	for(var/datum/limb/organ in organs)
+	for(var/obj/item/organ/limb/organ in organs)
 		armorval += checkarmor(organ, type)
 		organnum++
 	return (armorval/max(organnum, 1))
 
 
-/mob/living/carbon/human/proc/checkarmor(var/datum/limb/def_zone, var/type)
+/mob/living/carbon/human/proc/checkarmor(var/obj/item/organ/limb/def_zone, var/type)
 	if(!type)	return 0
 	var/protection = 0
 	var/list/body_parts = list(head, wear_mask, wear_suit, w_uniform)
@@ -70,6 +38,49 @@ emp_act
 				protection += C.armor[type]
 	return protection
 
+/mob/living/carbon/human/bullet_act(var/obj/item/projectile/P, var/def_zone)
+	if(istype(P, /obj/item/projectile/energy) || istype(P, /obj/item/projectile/beam))
+		if(check_reflect(def_zone)) // Checks if you've passed a reflection% check
+			visible_message("<span class='danger'>The [P.name] gets reflected by [src]!</span>", \
+							"<span class='userdanger'>The [P.name] gets reflected by [src]!</span>")
+			// Find a turf near or on the original location to bounce to
+			if(P.starting)
+				var/new_x = P.starting.x + pick(0, 0, 0, 0, 0, -1, 1, -2, 2)
+				var/new_y = P.starting.y + pick(0, 0, 0, 0, 0, -1, 1, -2, 2)
+				var/turf/curloc = get_turf(src)
+
+				// redirect the projectile
+				P.original = locate(new_x, new_y, P.z)
+				P.starting = curloc
+				P.current = curloc
+				P.firer = src
+				P.yo = new_y - curloc.y
+				P.xo = new_x - curloc.x
+
+			return -1 // complete projectile permutation
+
+	if(check_shields(P.damage, "the [P.name]"))
+		P.on_hit(src, 2, def_zone)
+		return 2
+	return (..(P , def_zone))
+
+/mob/living/carbon/human/proc/check_reflect(var/def_zone) //Reflection checks for anything in your l_hand, r_hand, or wear_suit based on reflect_chance var of the object
+	if(wear_suit && istype(wear_suit, /obj/item/))
+		var/obj/item/I = wear_suit
+		if(I.IsReflect(def_zone) == 1)
+			return 1
+	if(l_hand && istype(l_hand, /obj/item/))
+		var/obj/item/I = l_hand
+		if(I.IsReflect(def_zone) == 1)
+			return 1
+	if(r_hand && istype(r_hand, /obj/item/))
+		var/obj/item/I = r_hand
+		if(I.IsReflect(def_zone) == 1)
+			return 1
+	return 0
+
+
+//End Here
 
 /mob/living/carbon/human/proc/check_shields(var/damage = 0, var/attack_text = "the attack")
 	if(l_hand && istype(l_hand, /obj/item/weapon))//Current base is the prob(50-d/3)
@@ -109,7 +120,44 @@ emp_act
 /mob/living/carbon/human/proc/attacked_by(var/obj/item/I, var/mob/living/user, var/def_zone)
 	if(!I || !user)	return 0
 
-	var/datum/limb/affecting = get_organ(ran_zone(user.zone_sel.selecting))
+	var/obj/item/organ/limb/affecting = get_organ(ran_zone(user.zone_sel.selecting))
+
+//--------------------- Cyber limb stuff ---------------------\\
+
+	if(istype(I, /obj/item/weapon/weldingtool))
+		var/obj/item/weapon/weldingtool/WT = I
+		if(affecting.status == ORGAN_ROBOTIC)
+			if (WT.remove_fuel(0))
+				if(affecting.brute_dam > 0)
+					affecting.heal_damage(30,0,1) //Repair Brute
+					update_damage_overlays(0)
+					updatehealth()
+					for(var/mob/O in viewers(user, null))
+						O.show_message(text("\blue [user] has fixed some of the dents on [src]'s [affecting.getDisplayName()]!"), 1) //Tell everyone [src]'s limb (by its real name) has been repaired
+					return //So we don't attack them as well
+				else
+					user << "<span class='notice'>[src]'s [affecting.getDisplayName()] is already in good condition</span>"
+					return
+			else
+				user << "<span class='warning'>Need more welding fuel!</span>"
+				return
+
+
+	if(istype(I, /obj/item/weapon/cable_coil))
+		var/obj/item/weapon/cable_coil/coil = I
+		if(affecting.status == ORGAN_ROBOTIC)
+			if(affecting.burn_dam > 0)
+				affecting.heal_damage(0,30,1) //Repair Burn
+				updatehealth()
+				coil.use(1)
+				for(var/mob/O in viewers(user, null))
+					O.show_message(text("\blue [user] has fixed some of the burnt wires on [src]'s [affecting.getDisplayName()]!"), 1)
+				return //So we don't attack them as well
+			else
+				user << "<span class='notice'>[src]'s [affecting.getDisplayName()] is already in good condition</span>"
+				return
+
+//-------------------- End of Cyber limb stuff ---------------------\\
 
 	var/hit_area = parse_zone(affecting.name)
 
@@ -124,38 +172,41 @@ emp_act
 						"<span class='userdanger'>[src] has been attacked in the [hit_area] with [I] by [user]!</span>")
 
 	var/armor = run_armor_check(affecting, "melee", "<span class='warning'>Your armour has protected your [hit_area].</span>", "<span class='warning'>Your armour has softened a hit to your [hit_area].</span>")
-	if(armor >= 2)	return 0
+	if(armor >= 100)	return 0
 	if(!I.force)	return 0
+	var/Iforce = I.force //to avoid runtimes on the forcesay checks at the bottom. Some items might delete themselves if you drop them. (stunning yourself, ninja swords)
 
 	apply_damage(I.force, I.damtype, affecting, armor , I)
 
 	var/bloody = 0
 	if(((I.damtype == BRUTE) || (I.damtype == HALLOSS)) && prob(25 + (I.force * 2)))
-		I.add_blood(src)	//Make the weapon bloody, not the person.
-		if(prob(I.force * 2))	//blood spatter!
-			bloody = 1
-			var/turf/location = loc
-			if(istype(location, /turf/simulated))
-				location.add_blood(src)
-			if(ishuman(user))
-				var/mob/living/carbon/human/H = user
-				if(get_dist(H, src) <= 1)	//people with TK won't get smeared with blood
-					if(H.wear_suit)
-						H.wear_suit.add_blood(src)
-						H.update_inv_wear_suit(0)	//updates mob overlays to show the new blood (no refresh)
-					else if(H.w_uniform)
-						H.w_uniform.add_blood(src)
-						H.update_inv_w_uniform(0)	//updates mob overlays to show the new blood (no refresh)
-					if (H.gloves)
-						var/obj/item/clothing/gloves/G = H.gloves
-						G.add_blood(H)
-						G.transfer_blood = 2
-						G.bloody_hands_mob = H
-					else
-						H.add_blood(H)
-						H.bloody_hands = 2
-						H.bloody_hands_mob = H
-					H.update_inv_gloves()	//updates on-mob overlays for bloody hands and/or bloody gloves
+		if(affecting.status == ORGAN_ORGANIC)
+			I.add_blood(src)	//Make the weapon bloody, not the person.
+			if(prob(I.force * 2))	//blood spatter!
+				bloody = 1
+				var/turf/location = loc
+				if(istype(location, /turf/simulated))
+					location.add_blood(src)
+				if(ishuman(user))
+					var/mob/living/carbon/human/H = user
+					if(get_dist(H, src) <= 1)	//people with TK won't get smeared with blood
+						if(H.wear_suit)
+							H.wear_suit.add_blood(src)
+							H.update_inv_wear_suit(0)	//updates mob overlays to show the new blood (no refresh)
+						else if(H.w_uniform)
+							H.w_uniform.add_blood(src)
+							H.update_inv_w_uniform(0)	//updates mob overlays to show the new blood (no refresh)
+						if (H.gloves)
+							var/obj/item/clothing/gloves/G = H.gloves
+							G.add_blood(H)
+							G.transfer_blood = 2
+							G.bloody_hands_mob = H
+						else
+							H.add_blood(H)
+							H.bloody_hands = 2
+							H.bloody_hands_mob = H
+						H.update_inv_gloves()	//updates on-mob overlays for bloody hands and/or bloody gloves
+
 
 		switch(hit_area)
 			if("head")	//Harder to score a stun but if you do it lasts a bit longer
@@ -191,5 +242,23 @@ emp_act
 						w_uniform.add_blood(src)
 						update_inv_w_uniform(0)
 
-		if(I.force > 10 || I.force >= 5 && prob(33))
+		if(Iforce > 10 || Iforce >= 5 && prob(33))
 			forcesay(hit_appends)	//forcesay checks stat already.
+
+
+
+/mob/living/carbon/human/emp_act(severity)
+
+	for(var/obj/item/organ/limb/L in src.organs)
+		if(L.status == ORGAN_ROBOTIC)
+			switch(severity)
+				if(1)
+					L.take_damage(20)
+					src.Stun(rand(1,10))
+				if(2)
+					L.take_damage(10)
+					src.Stun(rand(1,5))
+
+
+			src << "<span class='danger'>Error, electormagnetic pulse detected in cyber limb!</span>"
+	..()

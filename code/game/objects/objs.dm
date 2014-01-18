@@ -41,8 +41,11 @@
 	//		null if object handles breathing logic for lifeform
 	//		datum/air_group to tell lifeform to process using that breath return
 	//DEFAULT: Take air from turf to give to have mob process
+
 	if(breath_request>0)
-		return remove_air(breath_request)
+		var/datum/gas_mixture/environment = return_air()
+		var/breath_percentage = BREATH_VOLUME / environment.return_volume()
+		return remove_air(environment.total_moles() * breath_percentage)
 	else
 		return null
 
@@ -90,6 +93,9 @@
 /obj/proc/interact(mob/user)
 	return
 
+/obj/proc/container_resist()
+	return
+
 /obj/proc/update_icon()
 	return
 
@@ -124,3 +130,13 @@
 		mo.show_message(rendered, 2)
 		*/
 	return
+
+
+
+//If a mob logouts/logins in side of an object you can use this proc
+/obj/proc/on_log()
+	..()
+	if(isobj(loc))
+		var/obj/Loc=loc
+		Loc.on_log()
+

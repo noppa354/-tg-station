@@ -1,5 +1,5 @@
 /obj/machinery/bot/ed209
-	name = "ED-209 Security Robot"
+	name = "\improper ED-209 Security Robot"
 	desc = "A security robot.  He looks less than thrilled."
 	icon = 'icons/obj/aibots.dmi'
 	icon_state = "ed2090"
@@ -61,7 +61,7 @@
 
 
 /obj/item/weapon/ed209_assembly
-	name = "ED-209 assembly"
+	name = "\improper ED-209 assembly"
 	desc = "Some sort of bizarre assembly."
 	icon = 'icons/obj/aibots.dmi'
 	icon_state = "ed209_frame"
@@ -88,7 +88,7 @@
 			shot_delay = 6//Longer shot delay because JESUS CHRIST
 			check_records = 0//Don't actively target people set to arrest
 			arrest_type = 1//Don't even try to cuff
-			req_access = list(access_maint_tunnels,access_clown,access_mime)
+			req_access = list(access_maint_tunnels, access_theatre)
 			arrest_type = 1
 			if((lasercolor == "b") && (name == "ED-209 Security Robot"))//Picks a name if there isn't already a custome one
 				name = pick("BLUE BALLER","SANIC","BLUE KILLDEATH MURDERBOT")
@@ -220,7 +220,7 @@ Auto Patrol: []"},
 		mode = SECBOT_IDLE
 
 /obj/machinery/bot/ed209/process()
-	set background = 1
+	set background = BACKGROUND_ENABLED
 
 	if (!src.on)
 		return

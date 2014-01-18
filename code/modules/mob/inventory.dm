@@ -14,7 +14,7 @@
 
 //Puts the item into your l_hand if possible and calls all necessary triggers/updates. returns 1 on success.
 /mob/proc/put_in_l_hand(var/obj/item/W)
-	if(lying)			return 0
+	if(lying && !(W.flags&ABSTRACT))			return 0
 	if(!istype(W))		return 0
 	if(!l_hand)
 		W.loc = src		//TODO: move to equipped?
@@ -30,7 +30,7 @@
 
 //Puts the item into your r_hand if possible and calls all necessary triggers/updates. returns 1 on success.
 /mob/proc/put_in_r_hand(var/obj/item/W)
-	if(lying)			return 0
+	if(lying && !(W.flags&ABSTRACT))			return 0
 	if(!istype(W))		return 0
 	if(!r_hand)
 		W.loc = src
@@ -79,6 +79,7 @@
 	if(W)
 		if(client)	client.screen -= W
 		u_equip(W)
+		if(!W) return 1 // self destroying objects (tk, grabs)
 		W.layer = initial(W.layer)
 		W.loc = loc
 
@@ -87,7 +88,7 @@
 			T.Entered(W)
 
 		W.dropped(src)
-		update_icons()
+		//update_icons() // Redundant as u_equip will handle updating the specific overlay
 		return 1
 	return 0
 

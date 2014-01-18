@@ -20,8 +20,8 @@
 				if(istype(src, /mob/living/carbon/human))
 					var/mob/living/carbon/human/H = src
 					var/organ = H.get_organ("chest")
-					if (istype(organ, /datum/limb))
-						var/datum/limb/temp = organ
+					if (istype(organ, /obj/item/organ/limb))
+						var/obj/item/organ/limb/temp = organ
 						if(temp.take_damage(d, 0))
 							H.update_damage_overlays(0)
 					H.updatehealth()
@@ -38,13 +38,20 @@
 						stomach_contents.Remove(A)
 					src.gib()
 
-/mob/living/carbon/gib()
+/mob/living/carbon/gib(var/animation = 1)
 	for(var/mob/M in src)
 		if(M in stomach_contents)
 			stomach_contents.Remove(M)
 		M.loc = loc
 		visible_message("<span class='danger'>[M] bursts out of [src]!</span>")
 	. = ..()
+
+/mob/living/carbon/AltClickOn(var/atom/A)
+	if(!src.stat && src.mind.changeling && src.mind.changeling.chosen_sting && (istype(A, /mob/living/carbon)) && (A != src))
+		next_click = world.time + 5
+		call(src, src.mind.changeling.chosen_sting)(A)
+	else
+		..()
 
 /mob/living/carbon/attack_hand(mob/user)
 	if(!iscarbon(user)) return
@@ -128,10 +135,10 @@
 	if(istext(selhand))
 		selhand = lowertext(selhand)
 
-	if(selhand == "right" || selhand == "r")
-		selhand = 0
-	if(selhand == "left" || selhand == "l")
-		selhand = 1
+		if(selhand == "right" || selhand == "r")
+			selhand = 0
+		if(selhand == "left" || selhand == "l")
+			selhand = 1
 
 	if(selhand != src.hand)
 		swap_hand()
@@ -146,7 +153,7 @@
 				"<span class='notice'>[src] examines \himself.", \
 				"<span class='notice'>You check yourself for injuries.</span>")
 
-			for(var/datum/limb/org in H.organs)
+			for(var/obj/item/organ/limb/org in H.organs)
 				var/status = ""
 				var/brutedamage = org.brute_dam
 				var/burndamage = org.burn_dam
@@ -209,88 +216,97 @@
 
 // ++++ROCKDTBEN++++ MOB PROCS //END
 
-/mob/living/carbon/proc/handle_ventcrawl() // -- TLE -- Merged by Carn
-
-	if(!stat)
-		if(!lying)
-
-			var/obj/machinery/atmospherics/unary/vent_pump/vent_found
-			for(var/obj/machinery/atmospherics/unary/vent_pump/v in range(1,src))
-				if(!v.welded)
-					vent_found = v
-				else
-					src << "\red That vent is welded."
-
-			if(vent_found)
-				if(vent_found.network&&vent_found.network.normal_members.len)
-					var/list/vents[0]
-					for(var/obj/machinery/atmospherics/unary/vent_pump/temp_vent in vent_found.network.normal_members)
-						if(temp_vent.loc == loc)
-							continue
-						if(temp_vent.welded)
-							continue
-						var/turf/T = get_turf(temp_vent)
-
-						if(!T || T.z != loc.z)
-							continue
-
-						var/i = 1
-						var/index = "[T.loc.name]\[[i]\]"
-						while(index in vents)
-							i++
-							index = "[T.loc.name]\[[i]\]"
-						vents[index] = temp_vent
-					if(!vents.len)
-						src << "\red There are no available vents to travel to, they could be welded."
-						return
-
-					var/turf/startloc = loc
-					var/obj/selection = input("Select a destination.", "Duct System") as null|anything in sortList(vents)
-					if(!selection)	return
-					if(loc==startloc)
-						for(var/obj/item/carried_item in contents)//If the monkey got on objects.
-							if( !istype(carried_item, /obj/item/weapon/implant) && !istype(carried_item, /obj/item/clothing/mask/facehugger) )//If it's not an implant or a facehugger
-								src << "\red You can't be carrying items or have items equipped when vent crawling!"
-								return
-						var/obj/machinery/atmospherics/unary/vent_pump/target_vent = vents[selection]
-						if(target_vent)
-							for(var/mob/O in viewers(src, null))
-								O.show_message(text("<B>[src] scrambles into the ventillation ducts!</B>"), 1)
-							loc = target_vent
-
-							var/travel_time = round(get_dist(loc, target_vent.loc) / 2)
-
-							spawn(travel_time)
-
-								if(!target_vent)	return
-								for(var/mob/O in hearers(target_vent,null))
-									O.show_message("You hear something squeezing through the ventilation ducts.",2)
-
-								sleep(travel_time)
-
-								if(!target_vent)	return
-								if(target_vent.welded)			//the vent can be welded while alien scrolled through the list or travelled.
-									target_vent = vent_found 	//travel back. No additional time required.
-									src << "\red The vent you were heading to appears to be welded."
-								loc = target_vent.loc
-								var/area/new_area = get_area(loc)
-								if(new_area)
-									new_area.Entered(src)
-
-					else
-						src << "You need to remain still while entering a vent."
-				else
-					src << "This vent is not connected to anything."
-
-			else
-				src << "You must be standing on or beside an air vent to enter it."
-
-		else
-			src << "You can't vent crawl while you're stunned!"
-
-	else
+/mob/living/carbon/proc/handle_ventcrawl(var/obj/machinery/atmospherics/unary/vent_pump/vent_found = null) // -- TLE -- Merged by Carn
+	if(stat)
 		src << "You must be conscious to do this!"
-	return
+		return
+	if(lying)
+		src << "You can't vent crawl while you're stunned!"
+		return
+
+	if(vent_found) // one was passed in, probably from vent/AltClick()
+		if(vent_found.welded)
+			src << "That vent is welded shut."
+			return
+		if(!vent_found.Adjacent(src))
+			return // don't even acknowledge that
+	else
+		for(var/obj/machinery/atmospherics/unary/vent_pump/v in range(1,src))
+			if(!v.welded)
+				if(v.Adjacent(src))
+					vent_found = v
+	if(!vent_found)
+		src << "You'll need a non-welded vent to crawl into!"
+		return
+
+	if(!vent_found.network || !vent_found.network.normal_members.len)
+		src << "This vent is not connected to anything."
+		return
+
+	var/list/vents = list()
+	for(var/obj/machinery/atmospherics/unary/vent_pump/temp_vent in vent_found.network.normal_members)
+		if(temp_vent.welded)
+			continue
+		if(temp_vent in loc)
+			continue
+		var/turf/T = get_turf(temp_vent)
+
+		if(!T || T.z != loc.z)
+			continue
+
+		var/i = 1
+		var/index = "[T.loc.name]\[[i]\]"
+		while(index in vents)
+			i++
+			index = "[T.loc.name]\[[i]\]"
+		vents[index] = temp_vent
+	if(!vents.len)
+		src << "\red There are no available vents to travel to, they could be welded."
+		return
+
+	var/obj/selection = input("Select a destination.", "Duct System") as null|anything in sortAssoc(vents)
+	if(!selection)	return
+
+	if(!vent_found.Adjacent(src))
+		src << "Never mind, you left."
+		return
+
+	for(var/obj/item/carried_item in contents)//If the monkey got on objects.
+		if( !istype(carried_item, /obj/item/weapon/implant) && !istype(carried_item, /obj/item/clothing/mask/facehugger) )//If it's not an implant or a facehugger
+			src << "\red You can't be carrying items or have items equipped when vent crawling!"
+			return
+	if(isslime(src))
+		var/mob/living/carbon/slime/S = src
+		if(S.Victim)
+			src << "\red You'll have to let [S.Victim] go or finish eating \him first."
+			return
+
+	var/obj/machinery/atmospherics/unary/vent_pump/target_vent = vents[selection]
+	if(!target_vent)
+		return
+
+	for(var/mob/O in viewers(src, null))
+		O.show_message(text("<B>[src] scrambles into the ventillation ducts!</B>"), 1)
+	loc = target_vent
+
+	var/travel_time = round(get_dist(loc, target_vent.loc) / 2)
+
+	spawn(travel_time)
+
+		if(!target_vent)	return
+		for(var/mob/O in hearers(target_vent,null))
+			O.show_message("You hear something squeezing through the ventilation ducts.",2)
+
+		sleep(travel_time)
+
+		if(!target_vent)	return
+		if(target_vent.welded)			//the vent can be welded while alien scrolled through the list or travelled.
+			target_vent = vent_found 	//travel back. No additional time required.
+			src << "\red The vent you were heading to appears to be welded."
+		loc = target_vent.loc
+		var/area/new_area = get_area(loc)
+		if(new_area)
+			new_area.Entered(src)
 
 
 /mob/living/carbon/clean_blood()
@@ -310,19 +326,6 @@
 
 //Throwing stuff
 /mob/living/carbon/proc/toggle_throw_mode()
-	var/obj/item/I = get_active_hand()
-	if(!I)//Not holding anything
-		if(client && (TK in mutations))
-			var/obj/item/tk_grab/O = new(src)
-			put_in_active_hand(O)
-			O.host = src
-			return
-
-	if(istype(I, /obj/item/tk_grab))
-		if(hand)	del(l_hand)
-		else		del(r_hand)
-		return
-
 	if(in_throw_mode)
 		throw_mode_off()
 	else
@@ -338,8 +341,9 @@
 	in_throw_mode = 1
 	throw_icon.icon_state = "act_throw_on"
 
-
-/mob/living/carbon/proc/throw_item(atom/target)
+/mob/proc/throw_item(atom/target)
+	return
+/mob/living/carbon/throw_item(atom/target)
 	throw_mode_off()
 	if(usr.stat || !target)
 		return
@@ -361,8 +365,7 @@
 				var/start_T_descriptor = "<font color='#6b5d00'>tile at [start_T.x], [start_T.y], [start_T.z] in area [get_area(start_T)]</font>"
 				var/end_T_descriptor = "<font color='#6b4400'>tile at [end_T.x], [end_T.y], [end_T.z] in area [get_area(end_T)]</font>"
 
-				M.attack_log += text("\[[time_stamp()]\] <font color='orange'>Has been thrown by [usr.name] ([usr.ckey]) from [start_T_descriptor] with the target [end_T_descriptor]</font>")
-				usr.attack_log += text("\[[time_stamp()]\] <font color='red'>Has thrown [M.name] ([M.ckey]) from [start_T_descriptor] with the target [end_T_descriptor]</font>")
+				add_logs(usr, M, "thrown", admin=0, addition="from [start_T_descriptor] with the target [end_T_descriptor]")
 
 	if(!item) return //Grab processing has a chance of returning null
 
@@ -391,11 +394,6 @@
 
 
 		item.throw_at(target, item.throw_range, item.throw_speed)
-
-
-/mob/living/carbon/fire_act(datum/gas_mixture/air, exposed_temperature, exposed_volume)
-	..()
-	bodytemperature = max(bodytemperature, BODYTEMP_HEAT_DAMAGE_LIMIT+10)
 
 /mob/living/carbon/can_use_hands()
 	if(handcuffed)
@@ -474,9 +472,9 @@
 	<HR>
 	<B><FONT size=3>[name]</FONT></B>
 	<HR>
-	<BR><B>Mask:</B> <A href='?src=\ref[src];item=[slot_wear_mask]'>		[wear_mask	? wear_mask	: "Nothing"]</A>
-	<BR><B>Left Hand:</B> <A href='?src=\ref[src];item=[slot_l_hand]'>		[l_hand		? l_hand	: "Nothing"]</A>
-	<BR><B>Right Hand:</B> <A href='?src=\ref[src];item=[slot_r_hand]'>		[r_hand		? r_hand	: "Nothing"]</A>"}
+	<BR><B>Mask:</B> <A href='?src=\ref[src];item=[slot_wear_mask]'>		[(wear_mask && !(wear_mask.flags&ABSTRACT))	? wear_mask	: "Nothing"]</A>
+	<BR><B>Left Hand:</B> <A href='?src=\ref[src];item=[slot_l_hand]'>		[(l_hand && !(l_hand.flags&ABSTRACT))		? l_hand	: "Nothing"]</A>
+	<BR><B>Right Hand:</B> <A href='?src=\ref[src];item=[slot_r_hand]'>		[(r_hand && !(r_hand.flags&ABSTRACT))		? r_hand	: "Nothing"]</A>"}
 
 	dat += "<BR><B>Back:</B> <A href='?src=\ref[src];item=[slot_back]'> [back ? back : "Nothing"]</A>"
 
@@ -528,11 +526,11 @@
 	..()
 
 
-/mob/living/carbon/say(var/message)
+/mob/living/carbon/say(var/message, var/bubble_type)
 	if(istype(wear_mask, /obj/item/clothing/mask/muzzle))
 		return
 
-	..(message)
+	..(message, bubble_type)
 
 /mob/living/carbon/proc/is_mutantrace(var/mrace)
 	if(mrace)
@@ -540,3 +538,38 @@
 			return 1
 	else
 		return src.dna && src.dna.mutantrace ? 1 : 0
+
+/mob/living/carbon/getTrail()
+	if(getBruteLoss() < 300)
+		if(prob(50))
+			return "ltrails_1"
+		return "ltrails_2"
+	else if(prob(50))
+		return "trails_1"
+	return "trails_2"
+
+var/const/NO_SLIP_WHEN_WALKING = 1
+var/const/STEP = 2
+var/const/SLIDE = 4
+var/const/GALOSHES_DONT_HELP = 8
+/mob/living/carbon/slip(var/s_amount, var/w_amount, var/obj/O, var/lube)
+	if (m_intent=="walk" && (lube&NO_SLIP_WHEN_WALKING))
+		return 0
+	if(!lying)
+		stop_pulling()
+		if(lube&STEP)
+			step(src, src.dir)
+		if(lube&SLIDE)
+			for(var/i=1, i<5, i++)
+				spawn (i)
+					step(src, src.dir)
+			take_organ_damage(2)
+		if(O)
+			src << "<span class='notice'>You slipped on the [O.name]!</span>"
+		else
+			src << "<span class='notice'>You slipped!</span>"
+		playsound(loc, 'sound/misc/slip.ogg', 50, 1, -3)
+		Stun(s_amount)
+		Weaken(w_amount)
+		return 1
+	return 0 // no success. Used in clown pda and wet floors

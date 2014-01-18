@@ -3,7 +3,7 @@
 	icon = 'icons/obj/assemblies/new_assemblies.dmi'
 	icon_state = "holder"
 	item_state = "assembly"
-	flags = FPRINT | TABLEPASS| CONDUCT
+	flags = CONDUCT
 	throwforce = 5
 	w_class = 2.0
 	throw_speed = 3
@@ -75,11 +75,11 @@
 			a_right.HasProximity(AM)
 
 
-	HasEntered(atom/movable/AM as mob|obj)
+	Crossed(atom/movable/AM as mob|obj)
 		if(a_left)
-			a_left.HasEntered(AM)
+			a_left.Crossed(AM)
 		if(a_right)
-			a_right.HasEntered(AM)
+			a_right.Crossed(AM)
 
 	on_found(mob/finder as mob)
 		if(a_left)

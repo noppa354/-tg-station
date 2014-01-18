@@ -7,7 +7,7 @@
 	w_class = 1.0
 	throw_speed = 4
 	throw_range = 10
-	flags = FPRINT | TABLEPASS| CONDUCT
+	flags = CONDUCT
 	origin_tech = "magnets=2;combat=1"
 
 	var/times_used = 0 //Number of times it's been used.
@@ -31,14 +31,17 @@
 	last_used = world.time
 	times_used = max(0,round(times_used)) //sanity
 
+/obj/item/device/flash/proc/burn_out(mob/user = null) //Made so you can override it if you want to have an invincible flash from R&D or something.
+	broken = 1
+	icon_state = "flashburnt"
+	if(user)
+		user << "<span class='warning'>The bulb has burnt out!</span>"
+
 
 /obj/item/device/flash/attack(mob/living/M, mob/user)
 	if(!user || !M)	return	//sanity
-	M.attack_log += text("\[[time_stamp()]\] <font color='orange'>Has been flashed (attempt) with [src.name]  by [user.name] ([user.ckey])</font>")
-	user.attack_log += text("\[[time_stamp()]\] <font color='red'>Used the [src.name] to flash [M.name] ([M.ckey])</font>")
 
-	log_attack("<font color='red'>[user.name] ([user.ckey]) Used the [src.name] to flash [M.name] ([M.ckey])</font>")
-
+	add_logs(user, M, "flashed", object="[src.name]")
 
 	if(!clown_check(user))	return
 	if(broken)
@@ -53,9 +56,7 @@
 		if(0 to 5)
 			last_used = world.time
 			if(prob(times_used))	//if you use it 5 times in a minute it has a 10% chance to break!
-				broken = 1
-				user << "<span class='warning'>The bulb has burnt out!</span>"
-				icon_state = "flashburnt"
+				burn_out(user)
 				return
 			times_used++
 		else	//can only use it  5 times a minute
@@ -138,9 +139,7 @@
 	switch(times_used)
 		if(0 to 5)
 			if(prob(2*times_used))	//if you use it 5 times in a minute it has a 10% chance to break!
-				broken = 1
-				user << "<span class='warning'>The bulb has burnt out!</span>"
-				icon_state = "flashburnt"
+				burn_out(user)
 				return
 			times_used++
 		else	//can only use it  5 times a minute
@@ -178,8 +177,7 @@
 	switch(times_used)
 		if(0 to 5)
 			if(prob(2*times_used))
-				broken = 1
-				icon_state = "flashburnt"
+				burn_out()
 				return
 			times_used++
 			if(istype(loc, /mob/living/carbon))
@@ -203,13 +201,9 @@
 /obj/item/device/flash/synthetic/attack(mob/living/M, mob/user)
 	..()
 	if(!broken)
-		broken = 1
-		user << "<span class='warning'>The bulb has burnt out!</span>"
-		icon_state = "flashburnt"
+		burn_out(user)
 
 /obj/item/device/flash/synthetic/attack_self(mob/living/carbon/user, flag = 0, emp = 0)
 	..()
 	if(!broken)
-		broken = 1
-		user << "<span class='warning'>The bulb has burnt out!</span>"
-		icon_state = "flashburnt"
+		burn_out(user)

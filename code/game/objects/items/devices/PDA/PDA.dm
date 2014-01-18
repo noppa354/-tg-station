@@ -11,7 +11,6 @@ var/global/list/obj/item/device/pda/PDAs = list()
 	icon_state = "pda"
 	item_state = "electronic"
 	w_class = 1.0
-	flags = FPRINT | TABLEPASS
 	slot_flags = SLOT_ID | SLOT_BELT
 
 	//Main variables
@@ -117,7 +116,7 @@ var/global/list/obj/item/device/pda/PDAs = list()
 /obj/item/device/pda/captain
 	default_cartridge = /obj/item/weapon/cartridge/captain
 	icon_state = "pda-captain"
-	toff = 1
+	detonate = 0
 
 /obj/item/device/pda/cargo
 	default_cartridge = /obj/item/weapon/cartridge/quartermaster
@@ -133,7 +132,7 @@ var/global/list/obj/item/device/pda/PDAs = list()
 /obj/item/device/pda/syndicate
 	default_cartridge = /obj/item/weapon/cartridge/syndicate
 	icon_state = "pda-syndi"
-	name = "Military PDA"
+	name = "military PDA"
 	owner = "John Doe"
 	hidden = 1
 
@@ -748,15 +747,6 @@ var/global/list/obj/item/device/pda/PDAs = list()
 		tnote += "<i><b>&rarr; To [P.owner]:</b></i><br>[t]<br>"
 		P.tnote += "<i><b>&larr; From <a href='byond://?src=\ref[P];choice=Message;target=\ref[src]'>[owner]</a> ([ownjob]):</b></i><br>[t]<br>"
 
-		if (prob(15)) //Give the AI a chance of intercepting the message
-			var/who = src.owner
-			if(prob(50))
-				who = P:owner
-			for(var/mob/living/silicon/ai/ai in mob_list)
-				// Allows other AIs to intercept the message but the AI won't intercept their own message.
-				if(ai.aiPDA != P && ai.aiPDA != src)
-					ai.show_message("<i>Intercepted message from <b>[who]</b>: [t]</i>")
-
 		if (!P.silent)
 			playsound(P.loc, 'sound/machines/twobeep.ogg', 50, 1)
 		for (var/mob/O in hearers(3, P.loc))
@@ -907,7 +897,8 @@ var/global/list/obj/item/device/pda/PDAs = list()
 				else
 					user.show_message("\blue No radiation detected.")
 
-/obj/item/device/pda/afterattack(atom/A as mob|obj|turf|area, mob/user as mob)
+/obj/item/device/pda/afterattack(atom/A as mob|obj|turf|area, mob/user as mob, proximity)
+	if(!proximity) return
 	switch(scanmode)
 
 		if(3)
@@ -923,62 +914,21 @@ var/global/list/obj/item/device/pda/PDAs = list()
 				user << "\blue No significant chemical agents found in [A]."
 
 		if(5)
-			if((istype(A, /obj/item/weapon/tank)) || (istype(A, /obj/machinery/portable_atmospherics)))
-				var/obj/icon = A
-				for (var/mob/O in viewers(user, null))
-					O << "\red [user] has used [src] on \icon[icon] [A]"
-				var/pressure = A:air_contents.return_pressure()
-
-				var/total_moles = A:air_contents.total_moles()
-
-				user << "\blue Results of analysis of \icon[icon]"
-				if (total_moles>0)
-					var/o2_concentration = A:air_contents.oxygen/total_moles
-					var/n2_concentration = A:air_contents.nitrogen/total_moles
-					var/co2_concentration = A:air_contents.carbon_dioxide/total_moles
-					var/plasma_concentration = A:air_contents.toxins/total_moles
-
-					var/unknown_concentration =  1-(o2_concentration+n2_concentration+co2_concentration+plasma_concentration)
-
-					user << "\blue Pressure: [round(pressure,0.1)] kPa"
-					user << "\blue Nitrogen: [round(n2_concentration*100)]%"
-					user << "\blue Oxygen: [round(o2_concentration*100)]%"
-					user << "\blue CO2: [round(co2_concentration*100)]%"
-					user << "\blue Plasma: [round(plasma_concentration*100)]%"
-					if(unknown_concentration>0.01)
-						user << "\red Unknown: [round(unknown_concentration*100)]%"
-					user << "\blue Temperature: [round(A:air_contents.temperature-T0C)]&deg;C"
-				else
-					user << "\blue Tank is empty!"
-
-			if (istype(A, /obj/machinery/atmospherics/pipe/tank))
-				var/obj/icon = A
-				var/obj/machinery/atmospherics/pipe/tank/T = A
-				for (var/mob/O in viewers(user, null))
-					O << "\red [user] has used [src] on \icon[icon] [T]"
-
-				var/pressure = T.parent.air.return_pressure()
-				var/total_moles = T.parent.air.total_moles()
-
-				user << "\blue Results of analysis of \icon[icon]"
-				if (total_moles>0)
-					var/o2_concentration = T.parent.air.oxygen/total_moles
-					var/n2_concentration = T.parent.air.nitrogen/total_moles
-					var/co2_concentration = T.parent.air.carbon_dioxide/total_moles
-					var/plasma_concentration = T.parent.air.toxins/total_moles
-
-					var/unknown_concentration =  1-(o2_concentration+n2_concentration+co2_concentration+plasma_concentration)
-
-					user << "\blue Pressure: [round(pressure,0.1)] kPa"
-					user << "\blue Nitrogen: [round(n2_concentration*100)]%"
-					user << "\blue Oxygen: [round(o2_concentration*100)]%"
-					user << "\blue CO2: [round(co2_concentration*100)]%"
-					user << "\blue Plasma: [round(plasma_concentration*100)]%"
-					if(unknown_concentration>0.01)
-						user << "\red Unknown: [round(unknown_concentration*100)]%"
-					user << "\blue Temperature: [round(T.parent.air.temperature-T0C)]&deg;C"
-				else
-					user << "\blue Tank is empty!"
+			if (istype(A, /obj/item/weapon/tank))
+				var/obj/item/weapon/tank/T = A
+				atmosanalyzer_scan(T.air_contents, user, T)
+			else if (istype(A, /obj/machinery/portable_atmospherics))
+				var/obj/machinery/portable_atmospherics/T = A
+				atmosanalyzer_scan(T.air_contents, user, T)
+			else if (istype(A, /obj/machinery/atmospherics/pipe))
+				var/obj/machinery/atmospherics/pipe/T = A
+				atmosanalyzer_scan(T.parent.air, user, T)
+			else if (istype(A, /obj/machinery/power/rad_collector))
+				var/obj/machinery/power/rad_collector/T = A
+				if(T.P) atmosanalyzer_scan(T.P.air_contents, user, T)
+			else if (istype(A, /obj/item/weapon/flamethrower))
+				var/obj/item/weapon/flamethrower/T = A
+				if(T.ptank) atmosanalyzer_scan(T.ptank.air_contents, user, T)
 
 	if (!scanmode && istype(A, /obj/item/weapon/paper) && owner)
 		note = A:info
@@ -1007,22 +957,15 @@ var/global/list/obj/item/device/pda/PDAs = list()
 		src.id.loc = get_turf(src.loc)
 	..()
 
-/obj/item/device/pda/clown/HasEntered(AM as mob|obj) //Clown PDA is slippery.
+/obj/item/device/pda/clown/Crossed(AM as mob|obj) //Clown PDA is slippery.
 	if (istype(AM, /mob/living/carbon))
-		var/mob/M =	AM
-		if ((istype(M, /mob/living/carbon/human) && (istype(M:shoes, /obj/item/clothing/shoes) && M:shoes.flags&NOSLIP)) || M.m_intent == "walk")
-			return
-
-		if ((istype(M, /mob/living/carbon/human) && (M.real_name != src.owner) && (istype(src.cartridge, /obj/item/weapon/cartridge/clown))))
-			if (src.cartridge:honk_charges < 5)
-				src.cartridge:honk_charges++
-
-		M.stop_pulling()
-		M << "\blue You slipped on the PDA!"
-		playsound(src.loc, 'sound/misc/slip.ogg', 50, 1, -3)
-		M.Stun(8)
-		M.Weaken(5)
-
+		var/mob/living/carbon/M = AM
+		if(M.slip(8, 5, src, NO_SLIP_WHEN_WALKING))
+			if (ishuman(M) && (M.real_name != src.owner))
+				if (istype(src.cartridge, /obj/item/weapon/cartridge/clown))
+					var/obj/item/weapon/cartridge/clown/cart = src.cartridge
+					if(cart.honk_charges < 5)
+						cart.honk_charges++
 
 //AI verb and proc for sending PDA messages.
 

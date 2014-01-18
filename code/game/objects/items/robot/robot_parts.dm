@@ -3,41 +3,41 @@
 	icon = 'icons/obj/robot_parts.dmi'
 	item_state = "buildpipe"
 	icon_state = "blank"
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = CONDUCT
 	slot_flags = SLOT_BELT
 	var/construction_time = 100
 	var/list/construction_cost = list("metal"=20000,"glass"=5000)
 
 /obj/item/robot_parts/l_arm
-	name = "Cyborg Left Arm"
+	name = "cyborg left arm"
 	desc = "A skeletal limb wrapped in pseudomuscles, with a low-conductivity case."
 	icon_state = "l_arm"
 	construction_time = 200
 	construction_cost = list("metal"=18000)
 
 /obj/item/robot_parts/r_arm
-	name = "Cyborg Right Arm"
+	name = "cyborg right arm"
 	desc = "A skeletal limb wrapped in pseudomuscles, with a low-conductivity case."
 	icon_state = "r_arm"
 	construction_time = 200
 	construction_cost = list("metal"=18000)
 
 /obj/item/robot_parts/l_leg
-	name = "Cyborg Left Leg"
+	name = "cyborg left leg"
 	desc = "A skeletal limb wrapped in pseudomuscles, with a low-conductivity case."
 	icon_state = "l_leg"
 	construction_time = 200
 	construction_cost = list("metal"=15000)
 
 /obj/item/robot_parts/r_leg
-	name = "Cyborg Right Leg"
+	name = "cyborg right leg"
 	desc = "A skeletal limb wrapped in pseudomuscles, with a low-conductivity case."
 	icon_state = "r_leg"
 	construction_time = 200
 	construction_cost = list("metal"=15000)
 
 /obj/item/robot_parts/chest
-	name = "Cyborg Torso"
+	name = "cyborg torso"
 	desc = "A heavily reinforced case containing cyborg logic boards, with space for a standard power cell."
 	icon_state = "chest"
 	construction_time = 350
@@ -46,7 +46,7 @@
 	var/obj/item/weapon/cell/cell = null
 
 /obj/item/robot_parts/head
-	name = "Cyborg Head"
+	name = "cyborg head"
 	desc = "A standard reinforced braincase, with spine-plugged neural socket and sensor gimbals."
 	icon_state = "head"
 	construction_time = 350
@@ -55,7 +55,7 @@
 	var/obj/item/device/flash/flash2 = null
 
 /obj/item/robot_parts/robot_suit
-	name = "Cyborg Endoskeleton"
+	name = "cyborg endoskeleton"
 	desc = "A complex metal backbone with standard limb sockets and pseudomuscle anchors."
 	icon_state = "robo_suit"
 	construction_time = 500
@@ -205,13 +205,15 @@
 			O.job = "Cyborg"
 
 			O.cell = chest.cell
-			O.cell.loc = O
+			chest.cell.loc = O
+			chest.cell = null
 			W.loc = O//Should fix cybros run time erroring when blown up. It got deleted before, along with the frame.
 			O.mmi = W
 
 			feedback_inc("cyborg_birth",1)
 
-			del(src)
+			src.loc = O
+			O.robot_suit = src
 		else
 			user << "\blue The MMI must go in after everything else!"
 
@@ -251,18 +253,20 @@
 /obj/item/robot_parts/head/attackby(obj/item/W as obj, mob/user as mob)
 	..()
 	if(istype(W, /obj/item/device/flash))
+		var/obj/item/device/flash/F = W
 		if(src.flash1 && src.flash2)
 			user << "\blue You have already inserted the eyes!"
 			return
-		else if(src.flash1)
-			user.drop_item()
-			W.loc = src
-			src.flash2 = W
-			user << "\blue You insert the flash into the eye socket!"
+		else if(F.broken)
+			user << "\blue You can't use a broken flash!"
+			return
 		else
 			user.drop_item()
-			W.loc = src
-			src.flash1 = W
+			F.loc = src
+			if(src.flash1)
+				src.flash2 = F
+			else
+				src.flash1 = F
 			user << "\blue You insert the flash into the eye socket!"
 	return
 

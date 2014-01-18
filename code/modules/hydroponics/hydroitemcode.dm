@@ -14,7 +14,8 @@
 		M << "\red You are heated by the warmth of the of the [name]!"
 		M.bodytemperature += potency/2 * TEMPERATURE_DAMAGE_COEFFICIENT
 
-/obj/item/weapon/grown/novaflower/afterattack(atom/A as mob|obj, mob/user as mob)
+/obj/item/weapon/grown/novaflower/afterattack(atom/A as mob|obj, mob/user as mob,proximity)
+	if(!proximity) return
 	if(endurance > 0)
 		endurance -= rand(1,(endurance/3)+1)
 	else
@@ -32,13 +33,14 @@
 		user << "\red The nettle burns your bare hand!"
 		if(istype(user, /mob/living/carbon/human))
 			var/organ = ((user.hand ? "l_":"r_") + "arm")
-			var/datum/limb/affecting = user.get_organ(organ)
+			var/obj/item/organ/limb/affecting = user.get_organ(organ)
 			if(affecting.take_damage(0,force))
 				user.update_damage_overlays(0)
 		else
 			user.take_organ_damage(0,force)
 
-/obj/item/weapon/grown/nettle/afterattack(atom/A as mob|obj, mob/user as mob)
+/obj/item/weapon/grown/nettle/afterattack(atom/A as mob|obj, mob/user as mob,proximity)
+	if(!proximity) return
 	if(force > 0)
 		force -= rand(1,(force/3)+1) // When you whack someone with it, leaves fall off
 		playsound(loc, 'sound/weapons/bladeslice.ogg', 50, 1, -1)
@@ -47,7 +49,7 @@
 		del(src)
 
 /obj/item/weapon/grown/nettle/changePotency(newValue) //-QualityVan
-	potency = newValue
+	..()
 	force = round((5+potency/5), 1)
 
 //Deathnettle
@@ -55,7 +57,7 @@
 	if(!user.gloves)
 		if(istype(user, /mob/living/carbon/human))
 			var/organ = ((user.hand ? "l_":"r_") + "arm")
-			var/datum/limb/affecting = user.get_organ(organ)
+			var/obj/item/organ/limb/affecting = user.get_organ(organ)
 			if(affecting.take_damage(0,force))
 				user.update_damage_overlays(0)
 		else
@@ -68,10 +70,7 @@
 	if(!..()) return
 	if(istype(M, /mob/living))
 		M << "\red You are stunned by the powerful acid of the Deathnettle!"
-		M.attack_log += text("\[[time_stamp()]\] <font color='orange'>Had the [src.name] used on them by [user.name] ([user.ckey])</font>")
-		user.attack_log += text("\[[time_stamp()]\] <font color='red'>Used the [src.name] on [M.name] ([M.ckey])</font>")
-
-		log_attack("<font color='red'> [user.name] ([user.ckey]) used the [src.name] on [M.name] ([M.ckey])</font>")
+		add_logs(user, M, "attacked", object="[src.name]")
 
 		playsound(loc, 'sound/weapons/bladeslice.ogg', 50, 1, -1)
 
@@ -81,7 +80,8 @@
 			M.Weaken(force/15)
 		M.drop_item()
 
-/obj/item/weapon/grown/deathnettle/afterattack(atom/A as mob|obj, mob/user as mob)
+/obj/item/weapon/grown/deathnettle/afterattack(atom/A as mob|obj, mob/user as mob,proximity)
+	if(!proximity) return
 	if (force > 0)
 		force -= rand(1,(force/3)+1) // When you whack someone with it, leaves fall off
 
@@ -90,7 +90,7 @@
 		del(src)
 
 /obj/item/weapon/grown/deathnettle/changePotency(newValue) //-QualityVan
-	potency = newValue
+	..()
 	force = round((5+potency/2.5), 1)
 
 

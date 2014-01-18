@@ -13,7 +13,6 @@ RSF
 	anchored = 0.0
 	var/matter = 0
 	var/mode = 1
-	flags = TABLEPASS
 	w_class = 3.0
 
 /obj/item/weapon/rsf/New()
@@ -61,7 +60,8 @@ RSF
 		return
 	// Change mode
 
-/obj/item/weapon/rsf/afterattack(atom/A, mob/user as mob)
+/obj/item/weapon/rsf/afterattack(atom/A, mob/user as mob, proximity)
+	if(!proximity) return
 	if (!(istype(A, /obj/structure/table) || istype(A, /turf/simulated/floor)))
 		return
 

@@ -1,7 +1,6 @@
 /obj/item
 	name = "item"
 	icon = 'icons/obj/items.dmi'
-	var/abstract = 0
 	var/item_state = null
 	var/r_speed = 1.0
 	var/health = null
@@ -9,7 +8,6 @@
 	var/burning = null
 	var/hitsound = null
 	var/w_class = 3.0
-	flags = FPRINT | TABLEPASS
 	var/slot_flags = 0		//This is used to determine on which slots an item can fit.
 	pass_flags = PASSTABLE
 	pressure_resistance = 5
@@ -26,7 +24,7 @@
 
 	//Since any item can now be a piece of clothing, this has to be put here so all items share it.
 	var/flags_inv //This flag is used to determine when items in someone's inventory cover others. IE helmets making it so you can't see glasses, etc.
-	var/color = null
+	var/item_color = null
 	var/body_parts_covered = 0 //see setup.dm for appropriate bit flags
 	//var/heat_transfer_coefficient = 1 //0 prevents all transfers, 1 is invisible
 	var/gas_transfer_coefficient = 1 // for leaking gas from turf to mask and vice-versa (for masks right now, but at some point, i'd like to include space helmets)
@@ -37,6 +35,7 @@
 	var/armor = list(melee = 0, bullet = 0, laser = 0,energy = 0, bomb = 0, bio = 0, rad = 0)
 	var/list/allowed = null //suit storage stuff.
 	var/obj/item/device/uplink/hidden/hidden_uplink = null // All items can have an uplink hidden inside, just remember to add the triggers.
+	var/reflect_chance = 0 //This var dictates what % of a time an object will reflect an energy based weapon's shot
 
 /obj/item/device
 	icon = 'icons/obj/device.dmi'
@@ -99,9 +98,18 @@
 			size = "bulky"
 		if(5.0)
 			size = "huge"
+		if(6.0)
+			size = "gigantic"
 		else
 	//if ((CLUMSY in usr.mutations) && prob(50)) t = "funny-looking"
-	usr << "This is a [src.blood_DNA ? "bloody " : ""]\icon[src][src.name]. It is a [size] item."
+
+	//This reformat names to get a/an properly working on item descriptions when they are bloody
+	var/f_name = "\a [src]"
+	if(src.blood_DNA)
+		f_name = "a bloody [name]"
+
+	usr << "\icon[src]This is [f_name]. It is a [size] item."
+
 	if(src.desc)
 		usr << src.desc
 	return
@@ -109,6 +117,7 @@
 /obj/item/attack_hand(mob/user as mob)
 	if (!user) return
 	if (istype(src.loc, /obj/item/weapon/storage))
+		//If the item is in a storage item, take it out
 		var/obj/item/weapon/storage/S = src.loc
 		S.remove_from_storage(src)
 
@@ -122,8 +131,7 @@
 	else
 		if(isliving(src.loc))
 			return
-		user.lastDblClick = world.time + 2
-		user.next_move = world.time + 2
+		user.next_move = max(user.next_move+2,world.time + 2)
 	src.pickup(user)
 	add_fingerprint(user)
 	user.put_in_active_hand(src)
@@ -148,8 +156,7 @@
 		if(istype(src.loc, /mob/living))
 			return
 		src.pickup(user)
-		user.lastDblClick = world.time + 2
-		user.next_move = world.time + 2
+		user.next_move = max(user.next_move+2,world.time + 2)
 
 	user.put_in_active_hand(src)
 	return
@@ -165,6 +172,13 @@
 		return
 	attack_paw(A)
 
+/obj/item/attack_ai(mob/user as mob)
+	if (istype(src.loc, /obj/item/weapon/robot_module))
+		//If the item is part of a cyborg module, equip it
+		if(!isrobot(user)) return
+		var/mob/living/silicon/robot/R = user
+		R.activate_module(src)
+		R.hud_used.update_robot_modules_display()
 
 // Due to storage type consolidation this should get used more now.
 // I have cleaned it up a little, but it could probably use more.  -Sayu
@@ -172,19 +186,23 @@
 	if(istype(W,/obj/item/weapon/storage))
 		var/obj/item/weapon/storage/S = W
 		if(S.use_to_pickup)
-			if(S.collection_mode) //Mode is set to collect all items on a tile and we clicked on a valid one.
+			if(S.collection_mode) //Mode is set to collect multiple items on a tile and we clicked on a valid one.
 				if(isturf(src.loc))
 					var/list/rejections = list()
 					var/success = 0
 					var/failure = 0
 
 					for(var/obj/item/I in src.loc)
+						if(S.collection_mode == 2 && !istype(I,src.type)) // We're only picking up items of the target type
+							failure = 1
+							continue
 						if(I.type in rejections) // To limit bag spamming: any given type only complains once
 							continue
 						if(!S.can_be_inserted(I))	// Note can_be_inserted still makes noise when the answer is no
 							rejections += I.type	// therefore full bags are still a little spammy
 							failure = 1
 							continue
+
 						success = 1
 						S.handle_item_insertion(I, 1)	//The 1 stops the "You put the [src] into [S]" insertion message from being displayed.
 					if(success && !failure)
@@ -199,150 +217,7 @@
 
 	return
 
-/obj/item/proc/attack(mob/living/M as mob, mob/living/user as mob, def_zone)
-
-	if (!istype(M)) // not sure if this is the right thing...
-		return
-	var/messagesource = M
-
-	if (istype(M,/mob/living/carbon/brain))
-		messagesource = M:container
-	if (src.hitsound)
-		playsound(src.loc, hitsound, 50, 1, -1)
-	/////////////////////////
-	user.lastattacked = M
-	M.lastattacker = user
-
-	user.attack_log += "\[[time_stamp()]\]<font color='red'> Attacked [M.name] ([M.ckey]) with [src.name] (INTENT: [uppertext(user.a_intent)]) (DAMTYE: [uppertext(src.damtype)])</font>"
-	M.attack_log += "\[[time_stamp()]\]<font color='orange'> Attacked by [user.name] ([user.ckey]) with [src.name] (INTENT: [uppertext(user.a_intent)]) (DAMTYE: [uppertext(src.damtype)])</font>"
-	log_attack("<font color='red'>[user.name] ([user.ckey]) attacked [M.name] ([M.ckey]) with [src.name] (INTENT: [uppertext(user.a_intent)]) (DAMTYE: [uppertext(src.damtype)])</font>" )
-
-	//spawn(1800)            // this wont work right
-	//	M.lastattacker = null
-	/////////////////////////
-
-	var/power = src.force
-	if(HULK in user.mutations)
-		power *= 2
-
-	if(!istype(M, /mob/living/carbon/human))
-		if(istype(M, /mob/living/carbon/slime))
-			var/mob/living/carbon/slime/slime = M
-			if(prob(25))
-				user << "\red [src] passes right through [M]!"
-				return
-
-			if(power > 0)
-				slime.attacked += 10
-
-			if(slime.Discipline && prob(50))	// wow, buddy, why am I getting attacked??
-				slime.Discipline = 0
-
-			if(power >= 3)
-				if(istype(slime, /mob/living/carbon/slime/adult))
-					if(prob(5 + round(power/2)))
-
-						if(slime.Victim)
-							if(prob(80) && !slime.client)
-								slime.Discipline++
-						slime.Victim = null
-						slime.anchored = 0
-
-						spawn()
-							if(slime)
-								slime.SStun = 1
-								sleep(rand(5,20))
-								if(slime)
-									slime.SStun = 0
-
-						spawn(0)
-							if(slime)
-								slime.canmove = 0
-								step_away(slime, user)
-								if(prob(25 + power))
-									sleep(2)
-									if(slime && user)
-										step_away(slime, user)
-								slime.canmove = 1
-
-				else
-					if(prob(10 + power*2))
-						if(slime)
-							if(slime.Victim)
-								if(prob(80) && !slime.client)
-									slime.Discipline++
-
-									if(slime.Discipline == 1)
-										slime.attacked = 0
-
-								spawn()
-									if(slime)
-										slime.SStun = 1
-										sleep(rand(5,20))
-										if(slime)
-											slime.SStun = 0
-
-							slime.Victim = null
-							slime.anchored = 0
-
-
-						spawn(0)
-							if(slime && user)
-								step_away(slime, user)
-								slime.canmove = 0
-								if(prob(25 + power*4))
-									sleep(2)
-									if(slime && user)
-										step_away(slime, user)
-								slime.canmove = 1
-
-
-		var/showname = "."
-		if(user)
-			showname = " by [user]."
-		if(!(user in viewers(M, null)))
-			showname = "."
-
-		for(var/mob/O in viewers(messagesource, null))
-			if(src.attack_verb.len)
-				O.show_message("\red <B>[M] has been [pick(src.attack_verb)] with [src][showname] </B>", 1)
-			else
-				O.show_message("\red <B>[M] has been attacked with [src][showname] </B>", 1)
-
-		if(!showname && user)
-			if(user.client)
-				user << "\red <B>You attack [M] with [src]. </B>"
-
-
-
-	if(istype(M, /mob/living/carbon/human))
-		M:attacked_by(src, user, def_zone)
-	else
-		switch(src.damtype)
-			if("brute")
-				if(istype(src, /mob/living/carbon/slime))
-					M.adjustBrainLoss(power)
-
-				else
-
-					M.take_organ_damage(power)
-					if (prob(33)) // Added blood for whacking non-humans too
-						var/turf/location = M.loc
-						if (istype(location, /turf/simulated))
-							location.add_blood_floor(M)
-			if("fire")
-				if (!(COLD_RESISTANCE in M.mutations))
-					M.take_organ_damage(0, power)
-					M << "Aargh it burns!"
-		M.updatehealth()
-	src.add_fingerprint(user)
-	return 1
-
-/obj/item/proc/attack_self()
-	return
-
-/obj/item/proc/afterattack()
-	return
+// afterattack() and attack() prototypes moved to _onclick/item_attack.dm for consistency
 
 /obj/item/proc/talk_into(mob/M as mob, text)
 	return
@@ -566,12 +441,12 @@
 	set category = "Object"
 	set name = "Pick up"
 
-	if(!usr.canmove || usr.stat || usr.restrained() || !in_range(src, usr))
+	if(!usr.canmove || usr.stat || usr.restrained() || !Adjacent(usr))
 		return
 
 	if(ishuman(usr) || ismonkey(usr))
 		if(usr.get_active_hand() == null)
-			src.Click() // Let me know if this has any problems -Giacom
+			usr.UnarmedAttack(src) // Let me know if this has any problems -Giacom | Actually let me know now.  -Sayu
 		/*
 		if(usr.get_active_hand() == null)
 			src.attack_hand(usr)
@@ -591,6 +466,10 @@
 
 /obj/item/proc/IsShield()
 	return 0
+
+/obj/item/proc/IsReflect(var/def_zone) //This proc determines if and at what% an object will reflect energy projectiles if it's in l_hand,r_hand or wear_suit
+	if(prob(reflect_chance))
+		return 1
 
 /obj/item/proc/eyestab(mob/living/carbon/M as mob, mob/living/carbon/user as mob)
 
@@ -616,10 +495,7 @@
 		user << "\red You cannot locate any eyes on this creature!"
 		return
 
-	user.attack_log += "\[[time_stamp()]\]<font color='red'> Attacked [M.name] ([M.ckey]) with [src.name] (INTENT: [uppertext(user.a_intent)])</font>"
-	M.attack_log += "\[[time_stamp()]\]<font color='orange'> Attacked by [user.name] ([user.ckey]) with [src.name] (INTENT: [uppertext(user.a_intent)])</font>"
-
-	log_attack("<font color='red'> [user.name] ([user.ckey]) attacked [M.name] ([M.ckey]) with [src.name] (INTENT: [uppertext(user.a_intent)])</font>")
+	add_logs(user, M, "attacked", object="[src.name]", addition="(INTENT: [uppertext(user.a_intent)])")
 
 	src.add_fingerprint(user)
 	//if((CLUMSY in user.mutations) && prob(50))
@@ -641,9 +517,11 @@
 			"\red You stab yourself in the eyes with [src]!" \
 		)
 	if(istype(M, /mob/living/carbon/human))
-		var/datum/limb/affecting = M:get_organ("head")
+		var/mob/living/carbon/human/U = M
+		var/obj/item/organ/limb/affecting = U.get_organ("head")
 		if(affecting.take_damage(7))
-			M:update_damage_overlays(0)
+			U.update_damage_overlays(0)
+
 	else
 		M.take_organ_damage(7)
 	M.eye_blurry += rand(3,4)

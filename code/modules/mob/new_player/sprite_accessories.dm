@@ -263,6 +263,11 @@
 		name = "Skinhead"
 		icon_state = "hair_skinhead"
 
+	longbangs
+		name = "Long Bangs"
+		icon_state = "hair_lbangs"
+		gender = FEMALE
+
 	balding
 		name = "Balding Hair"
 		icon_state = "hair_e"
@@ -273,12 +278,16 @@
 		icon_state = null
 		gender = MALE
 
+	parted
+		name = "Side Part"
+		icon_state = "hair_part"
+
 /////////////////////////////
 // Facial Hair Definitions //
 /////////////////////////////
 /datum/sprite_accessory/facial_hair
 	icon = 'icons/mob/human_face.dmi'
-	gender = MALE // barf (unless you're a dorf, dorfs dig chix /w beards :P)
+	gender = MALE // barf (unless you're a dorf, dorfs dig chix w/ beards :P)
 
 	shaved
 		name = "Shaved"

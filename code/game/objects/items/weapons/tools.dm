@@ -19,7 +19,7 @@
 	desc = "A wrench with common uses. Can be found in your hand."
 	icon = 'icons/obj/items.dmi'
 	icon_state = "wrench"
-	flags = FPRINT | TABLEPASS| CONDUCT
+	flags = CONDUCT
 	slot_flags = SLOT_BELT
 	force = 5.0
 	throwforce = 7.0
@@ -37,7 +37,7 @@
 	desc = "You can be totally screwy with this."
 	icon = 'icons/obj/items.dmi'
 	icon_state = "screwdriver"
-	flags = FPRINT | TABLEPASS| CONDUCT
+	flags = CONDUCT
 	slot_flags = SLOT_BELT
 	force = 5.0
 	w_class = 1.0
@@ -97,7 +97,7 @@
 	desc = "This cuts wires."
 	icon = 'icons/obj/items.dmi'
 	icon_state = "cutters"
-	flags = FPRINT | TABLEPASS| CONDUCT
+	flags = CONDUCT
 	slot_flags = SLOT_BELT
 	force = 6.0
 	throw_speed = 2
@@ -129,7 +129,7 @@
 	name = "welding tool"
 	icon = 'icons/obj/items.dmi'
 	icon_state = "welder"
-	flags = FPRINT | TABLEPASS| CONDUCT
+	flags = CONDUCT
 	slot_flags = SLOT_BELT
 	force = 3
 	throwforce = 5
@@ -150,7 +150,8 @@
 
 /obj/item/weapon/weldingtool/examine()
 	set src in usr
-	usr << "[src] \icon[src] contains [get_fuel()]/[max_fuel] units of fuel!"
+	..()
+	usr << "It contains [get_fuel()]/[max_fuel] units of fuel!"
 
 
 /obj/item/weapon/weldingtool/attackby(obj/item/I, mob/user)
@@ -190,7 +191,8 @@
 		location.hotspot_expose(700, 5)
 
 
-/obj/item/weapon/weldingtool/afterattack(obj/O, mob/user)
+/obj/item/weapon/weldingtool/afterattack(atom/O, mob/user, proximity)
+	if(!proximity) return
 	if(istype(O, /obj/structure/reagent_dispensers/fueltank) && in_range(src, O))
 		if(!welding)
 			O.reagents.trans_to(src, max_fuel)
@@ -201,7 +203,7 @@
 			message_admins("[key_name_admin(user)] triggered a fueltank explosion.")
 			log_game("[key_name(user)] triggered a fueltank explosion.")
 			user << "<span class='warning'>That was stupid of you.</span>"
-			explosion(O.loc, -1, 0, 2)
+			explosion(O.loc, -1, 0, 2, flame_range = 2)
 			if(O)
 				del(O)
 			return
@@ -211,6 +213,9 @@
 		var/turf/location = get_turf(user)
 		location.hotspot_expose(700, 50, 1)
 
+		if(isliving(O))
+			var/mob/living/L = O
+			L.IgniteMob()
 
 /obj/item/weapon/weldingtool/attack_self(mob/user)
 	toggle(user)
@@ -395,7 +400,7 @@
 	desc = "Used to hit floors"
 	icon = 'icons/obj/items.dmi'
 	icon_state = "crowbar"
-	flags = FPRINT | TABLEPASS| CONDUCT
+	flags = CONDUCT
 	slot_flags = SLOT_BELT
 	force = 5.0
 	throwforce = 7.0

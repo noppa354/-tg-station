@@ -4,7 +4,7 @@
 	icon_state = "std_module"
 	w_class = 100.0
 	item_state = "electronic"
-	flags = FPRINT|TABLEPASS | CONDUCT
+	flags = CONDUCT
 
 	var/list/modules = list()
 	var/obj/item/emag = null
@@ -108,6 +108,10 @@
 		W.amount = 50
 		modules += W
 
+		var/obj/item/stack/tile/plasteel/cyborg/F = new /obj/item/stack/tile/plasteel/cyborg(src) //"Plasteel" is the normal metal floor tile, Don't be confused - RR
+		F.amount = 50
+		modules += F //'F' for floor tile - RR
+
 
 	respawn_consumable(var/mob/living/silicon/robot/R)
 		var/list/what = list (
@@ -115,6 +119,7 @@
 			/obj/item/stack/sheet/rglass,
 			/obj/item/stack/rods,
 			/obj/item/weapon/cable_coil,
+			/obj/item/stack/tile/plasteel/cyborg,
 		)
 		for(var/T in what)
 			if(!(locate(T) in modules))
@@ -142,9 +147,9 @@
 	New()
 		..()
 		modules += new /obj/item/weapon/soap/nanotrasen(src)
-		modules += new /obj/item/weapon/storage/bag/trash(src)
-		modules += new /obj/item/weapon/mop(src)
-		modules += new /obj/item/device/lightreplacer(src)
+		modules += new /obj/item/weapon/storage/bag/trash/cyborg(src)
+		modules += new /obj/item/weapon/mop/cyborg(src)
+		modules += new /obj/item/device/lightreplacer/cyborg(src)
 		emag = new /obj/item/weapon/reagent_containers/spray(src)
 
 		emag.reagents.add_reagent("lube", 250)
@@ -160,6 +165,7 @@
 		modules += new /obj/item/weapon/reagent_containers/food/condiment/enzyme(src)
 		modules += new /obj/item/weapon/pen(src)
 		modules += new /obj/item/weapon/razor(src)
+		modules += new /obj/item/device/violin(src)
 
 		var/obj/item/weapon/rsf/M = new /obj/item/weapon/rsf(src)
 		M.matter = 30
@@ -172,7 +178,7 @@
 		modules += L
 
 		modules += new /obj/item/weapon/tray(src)
-		modules += new /obj/item/weapon/reagent_containers/food/drinks/shaker(src)
+		modules += new /obj/item/weapon/reagent_containers/borghypo/borgshaker(src)
 		emag = new /obj/item/weapon/reagent_containers/food/drinks/beer(src)
 
 		var/datum/reagents/R = new/datum/reagents(50)
@@ -198,6 +204,11 @@
 	name = "syndicate robot module"
 
 	New()
-		modules += new /obj/item/weapon/melee/energy/sword(src)
-		modules += new /obj/item/weapon/gun/energy/pulse_rifle/destroyer(src)
+		..()
+		modules += new /obj/item/weapon/melee/energy/sword/cyborg(src)
+		modules += new /obj/item/weapon/gun/energy/crossbow/cyborg(src)
 		modules += new /obj/item/weapon/card/emag(src)
+		modules += new /obj/item/weapon/gun/energy/laser/cyborg(src)
+		modules += new /obj/item/weapon/tank/jetpack/carbondioxide(src)
+		modules += new /obj/item/weapon/crowbar(src)
+		emag = null

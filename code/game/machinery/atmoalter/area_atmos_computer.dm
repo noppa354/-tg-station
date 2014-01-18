@@ -1,5 +1,5 @@
 /obj/machinery/computer/area_atmos
-	name = "Area Air Control"
+	name = "area air control computer"
 	desc = "A computer used to control the stationary scrubbers and pumps in the area."
 	icon_state = "area_atmos"
 	circuit = "/obj/item/weapon/circuitboard/area_atmos"
@@ -17,12 +17,6 @@
 		//So the scrubbers have time to spawn
 		spawn(10)
 			scanscrubbers()
-
-	attack_ai(var/mob/user as mob)
-		return src.attack_hand(user)
-
-	attack_paw(var/mob/user as mob)
-		return
 
 	attack_hand(var/mob/user as mob)
 		if(..(user))

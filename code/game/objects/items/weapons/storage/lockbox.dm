@@ -33,7 +33,7 @@
 					user << "\red You unlock the [src.name]!"
 					return
 			else
-				user << "\red Access Denied"
+				user << "\red Access Denied."
 				return
 		else if((istype(W, /obj/item/weapon/card/emag)||istype(W, /obj/item/weapon/melee/energy/blade)) && !src.broken)
 			broken = 1
@@ -57,20 +57,20 @@
 		if(!locked)
 			..()
 		else
-			user << "\red Its locked!"
+			user << "\red It's locked!"
 		return
 
 
 	show_to(mob/user as mob)
 		if(locked)
-			user << "\red Its locked!"
+			user << "\red It's locked!"
 		else
 			..()
 		return
 
 
 /obj/item/weapon/storage/lockbox/loyalty
-	name = "Lockbox (Loyalty Implants)"
+	name = "lockbox of loyalty implants"
 	req_access = list(access_security)
 
 	New()
@@ -82,7 +82,7 @@
 
 
 /obj/item/weapon/storage/lockbox/clusterbang
-	name = "lockbox (clusterbang)"
+	name = "lockbox of clusterbangs"
 	desc = "You have a bad feeling about opening this."
 	req_access = list(access_security)
 
@@ -97,7 +97,7 @@
 	item_state = "syringe_kit"
 	w_class = 3
 	max_w_class = 2
-	storage_slots = 5
+	storage_slots = 6
 	req_access = list(access_captain)
 	icon_locked = "medalbox+l"
 	icon_closed = "medalbox"
@@ -110,3 +110,4 @@
 		new /obj/item/clothing/tie/medal/conduct(src)
 		new /obj/item/clothing/tie/medal/conduct(src)
 		new /obj/item/clothing/tie/medal/conduct(src)
+		new /obj/item/clothing/tie/medal/gold/captain(src)

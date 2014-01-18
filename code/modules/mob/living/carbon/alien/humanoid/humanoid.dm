@@ -59,17 +59,7 @@
 	..()
 
 /mob/living/carbon/alien/humanoid/ex_act(severity)
-	if(!blinded)
-		flick("flash", flash)
-
-	if (stat == 2 && client)
-		gib()
-		return
-
-	else if (stat == 2 && !client)
-		xgibs(loc, viruses)
-		del(src)
-		return
+	..()
 
 	var/shielded = 0
 
@@ -77,7 +67,6 @@
 	var/f_loss = null
 	switch (severity)
 		if (1.0)
-			b_loss += 500
 			gib()
 			return
 
@@ -132,16 +121,6 @@
 		updatehealth()
 	return
 
-
-/mob/living/carbon/alien/humanoid/hand_p(mob/living/carbon/user)
-	if(user.a_intent == "harm")
-		if(istype(user.wear_mask, /obj/item/clothing/mask/muzzle))
-			return
-		if(health > 0)
-			visible_message("<span class='danger'>[user] has bit [src]!</span>")
-			adjustBruteLoss(rand(1, 3))
-			updatehealth()
-
 /mob/living/carbon/alien/humanoid/attack_paw(mob/living/carbon/monkey/M as mob)
 	if(!ismonkey(M))	return//Fix for aliens receiving double messages when attacking other aliens.
 
@@ -186,7 +165,7 @@
 
 		var/damage = rand(1, 3)
 
-		if(istype(M, /mob/living/carbon/slime/adult))
+		if(M.is_adult)
 			damage = rand(10, 40)
 		else
 			damage = rand(5, 35)
@@ -267,7 +246,6 @@
 
 			M.put_in_active_hand(G)
 
-			grabbed_by += G
 			G.synch()
 
 			LAssailant = M

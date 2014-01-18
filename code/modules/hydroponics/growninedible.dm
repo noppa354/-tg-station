@@ -8,19 +8,20 @@
 	var/seed = ""
 	var/plantname = ""
 	var/product	//a type path
-	var/species = ""
 	var/lifespan = 20
 	var/endurance = 15
 	var/maturation = 7
 	var/production = 7
 	var/yield = 2
-	var/potency = 1
+	var/potency = 20
 	var/plant_type = 0
-	New()
-		create_reagents(50)
+
+/obj/item/weapon/grown/New()
+	create_reagents(50)
 
 /obj/item/weapon/grown/proc/changePotency(newValue) //-QualityVan
 	potency = newValue
+	transform *= TransformUsingVariable(potency, 100, 0.5) //Makes the resulting produce's sprite larger or smaller based on potency!
 
 /obj/item/weapon/grown/log
 	name = "tower-cap log"
@@ -28,7 +29,6 @@
 	icon = 'icons/obj/harvest.dmi'
 	icon_state = "logs"
 	force = 5
-	flags = TABLEPASS
 	throwforce = 5
 	w_class = 3.0
 	throw_speed = 3
@@ -61,7 +61,7 @@
 	icon_state = "sunflower"
 	damtype = "fire"
 	force = 0
-	flags = TABLEPASS
+	slot_flags = SLOT_HEAD
 	throwforce = 1
 	w_class = 1.0
 	throw_speed = 1
@@ -76,7 +76,7 @@
 	icon_state = "novaflower"
 	damtype = "fire"
 	force = 0
-	flags = TABLEPASS
+	slot_flags = SLOT_HEAD
 	throwforce = 1
 	w_class = 1.0
 	throw_speed = 1
@@ -98,7 +98,6 @@
 	icon_state = "nettle"
 	damtype = "fire"
 	force = 15
-	flags = TABLEPASS
 	throwforce = 1
 	w_class = 1.0
 	throw_speed = 1
@@ -120,7 +119,6 @@
 	icon_state = "deathnettle"
 	damtype = "fire"
 	force = 30
-	flags = TABLEPASS
 	throwforce = 1
 	w_class = 1.0
 	throw_speed = 1

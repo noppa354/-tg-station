@@ -118,8 +118,8 @@ CIGARETTE PACKETS ARE IN FANCY.DM
 	return
 
 
-/obj/item/clothing/mask/cigarette/afterattack(obj/item/weapon/reagent_containers/glass/glass, mob/user as mob)
-	..()
+/obj/item/clothing/mask/cigarette/afterattack(obj/item/weapon/reagent_containers/glass/glass, mob/user as mob, proximity)
+	if(!proximity) return
 	if(istype(glass))	//you can dip cigarettes into beakers
 		var/transfered = glass.reagents.trans_to(src, chem_volume)
 		if(transfered)	//if reagents were transfered, show the message
@@ -160,7 +160,7 @@ CIGARETTE PACKETS ARE IN FANCY.DM
 		var/turf/T = get_turf(src)
 		T.visible_message(flavor_text)
 		processing_objects.Add(src)
-		
+
 		//can't think of any other way to update the overlays :<
 		if(ismob(loc))
 			var/mob/M = loc
@@ -171,12 +171,14 @@ CIGARETTE PACKETS ARE IN FANCY.DM
 
 /obj/item/clothing/mask/cigarette/process()
 	var/turf/location = get_turf(src)
+	var/mob/living/M = loc
+	if(isliving(loc))
+		M.IgniteMob()
 	smoketime--
 	if(smoketime < 1)
 		new type_butt(location)
 		processing_objects.Remove(src)
 		if(ismob(loc))
-			var/mob/living/M = loc
 			M << "<span class='notice'>Your [name] goes out.</span>"
 			M.u_equip(src)	//un-equip it so the overlays can update
 			M.update_inv_wear_mask(0)
@@ -221,7 +223,7 @@ CIGARETTE PACKETS ARE IN FANCY.DM
 // CIGARS //
 ////////////
 /obj/item/clothing/mask/cigarette/cigar
-	name = "Premium Cigar"
+	name = "premium cigar"
 	desc = "A brown roll of tobacco and... well, you're not quite sure. This thing's huge!"
 	icon_state = "cigaroff"
 	icon_on = "cigaron"
@@ -233,14 +235,14 @@ CIGARETTE PACKETS ARE IN FANCY.DM
 	chem_volume = 20
 
 /obj/item/clothing/mask/cigarette/cigar/cohiba
-	name = "Cohiba Robusto Cigar"
+	name = "\improper Cohiba Robusto cigar"
 	desc = "There's little more you could want from a cigar."
 	icon_state = "cigar2off"
 	icon_on = "cigar2on"
 	icon_off = "cigar2off"
 
 /obj/item/clothing/mask/cigarette/cigar/havana
-	name = "Premium Havanian Cigar"
+	name = "premium Havanian cigar"
 	desc = "A cigar fit for only the best for the best."
 	icon_state = "cigar2off"
 	icon_on = "cigar2on"
@@ -328,13 +330,13 @@ CIGARETTE PACKETS ARE IN FANCY.DM
 	var/icon_off = "lighter-g"
 	w_class = 1
 	throwforce = 4
-	flags = TABLEPASS | CONDUCT
+	flags = CONDUCT
 	slot_flags = SLOT_BELT
 	attack_verb = list("burnt", "singed")
 	var/lit = 0
 
 /obj/item/weapon/lighter/zippo
-	name = "Zippo lighter"
+	name = "\improper Zippo lighter"
 	desc = "The zippo."
 	icon_state = "zippo"
 	item_state = "zippo"
@@ -381,11 +383,12 @@ CIGARETTE PACKETS ARE IN FANCY.DM
 		return ..()
 	return
 
-
 /obj/item/weapon/lighter/attack(mob/living/carbon/M as mob, mob/living/carbon/user as mob)
+	if(!isliving(M))
+		return
+	M.IgniteMob()
 	if(!istype(M,/mob/living/carbon))
 		return
-
 	if(istype(M.wear_mask, /obj/item/clothing/mask/cigarette) && user.zone_sel.selecting == "mouth" && lit)
 		var/obj/item/clothing/mask/cigarette/cig = M.wear_mask
 		if(M == user)

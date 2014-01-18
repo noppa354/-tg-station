@@ -1,5 +1,5 @@
 /obj/machinery/computer/HolodeckControl
-	name = "Holodeck Control Console"
+	name = "holodeck control console"
 	desc = "A computer used to control a nearby holodeck."
 	icon_state = "holocontrol"
 	var/area/linkedholodeck = null
@@ -8,13 +8,6 @@
 	var/list/holographic_items = list()
 	var/damaged = 0
 	var/last_change = 0
-
-
-	attack_ai(var/mob/user as mob)
-		return src.attack_hand(user)
-
-	attack_paw(var/mob/user as mob)
-		return
 
 	attack_hand(var/mob/user as mob)
 
@@ -122,43 +115,16 @@
 
 
 /obj/machinery/computer/HolodeckControl/attackby(var/obj/item/weapon/D as obj, var/mob/user as mob)
-//Warning, uncommenting this can have concequences. For example, deconstructing the computer may cause holographic eswords to never derez
 
-/*		if(istype(D, /obj/item/weapon/screwdriver))
-			playsound(src.loc, 'sound/items/Screwdriver.ogg', 50, 1)
-			if(do_after(user, 20))
-				if (src.stat & BROKEN)
-					user << "\blue The broken glass falls out."
-					var/obj/structure/computerframe/A = new /obj/structure/computerframe( src.loc )
-					new /obj/item/weapon/shard( src.loc )
-					var/obj/item/weapon/circuitboard/comm_traffic/M = new /obj/item/weapon/circuitboard/comm_traffic( A )
-					for (var/obj/C in src)
-						C.loc = src.loc
-					A.circuit = M
-					A.state = 3
-					A.icon_state = "3"
-					A.anchored = 1
-					del(src)
-				else
-					user << "\blue You disconnect the monitor."
-					var/obj/structure/computerframe/A = new /obj/structure/computerframe( src.loc )
-					var/obj/item/weapon/circuitboard/comm_traffic/M = new /obj/item/weapon/circuitboard/comm_traffic( A )
-					for (var/obj/C in src)
-						C.loc = src.loc
-					A.circuit = M
-					A.state = 4
-					A.icon_state = "4"
-					A.anchored = 1
-					del(src)
-
-*/
 	if(istype(D, /obj/item/weapon/card/emag) && !emagged)
 		playsound(src.loc, 'sound/effects/sparks4.ogg', 75, 1)
 		emagged = 1
 		user << "\blue You vastly increase projector power and override the safety and security protocols."
 		user << "Warning.  Automatic shutoff and derezing protocols have been corrupted.  Please call Nanotrasen maintenance and do not use the simulator."
 		log_game("[key_name(usr)] emagged the Holodeck Control Console")
-	src.updateUsrDialog()
+		src.updateUsrDialog()
+	else
+		..()
 	return
 
 /obj/machinery/computer/HolodeckControl/New()
@@ -260,7 +226,7 @@
 		if(world.time < (last_change + 15))//To prevent super-spam clicking, reduced process size and annoyance -Sieve
 			return
 		for(var/mob/M in range(3,src))
-			M.show_message("\b ERROR. Recalibrating projetion apparatus.")
+			M.show_message("\b ERROR. Recalibrating projection apparatus.")
 			last_change = world.time
 			return
 
@@ -286,13 +252,14 @@
 		for(var/obj/effect/landmark/L in linkedholodeck)
 			if(L.name=="Atmospheric Test Start")
 				spawn(20)
-					var/turf/T = get_turf(L)
-					var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-					s.set_up(2, 1, T)
-					s.start()
-					if(T)
-						T.temperature = 5000
-						T.hotspot_expose(50000,50000,1)
+					if(istype(target,/area/holodeck/source_burntest))
+						var/turf/T = get_turf(L)
+						var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
+						s.set_up(2, 1, T)
+						s.start()
+						if(T)
+							T.temperature = 5000
+							T.hotspot_expose(50000,50000,1)
 			if(L.name=="Holocarp Spawn")
 				new /mob/living/simple_animal/hostile/carp(L.loc)
 
@@ -323,7 +290,8 @@
 	thermal_conductivity = 0
 
 /turf/simulated/floor/holofloor/grass
-	name = "Lush Grass"
+	gender = PLURAL
+	name = "lush grass"
 	icon_state = "grass1"
 	floor_tile = new/obj/item/stack/tile/grass
 
@@ -396,23 +364,23 @@
 	damtype = HALLOSS
 
 /obj/item/weapon/holo/esword
-	desc = "May the force be within you. Sorta"
+	desc = "May the force be with you. Sorta"
 	icon_state = "sword0"
 	force = 3.0
 	throw_speed = 1
 	throw_range = 5
 	throwforce = 0
 	w_class = 2.0
-	flags = FPRINT | TABLEPASS | NOSHIELD
+	flags = NOSHIELD
 	var/active = 0
 
 /obj/item/weapon/holo/esword/green
 	New()
-		color = "green"
+		item_color = "green"
 
 /obj/item/weapon/holo/esword/red
 	New()
-		color = "red"
+		item_color = "red"
 
 /obj/item/weapon/holo/esword/IsShield()
 	if(active)
@@ -423,13 +391,13 @@
 	..()
 
 /obj/item/weapon/holo/esword/New()
-	color = pick("red","blue","green","purple")
+	item_color = pick("red","blue","green","purple")
 
 /obj/item/weapon/holo/esword/attack_self(mob/living/user as mob)
 	active = !active
 	if (active)
 		force = 30
-		icon_state = "sword[color]"
+		icon_state = "sword[item_color]"
 		w_class = 4
 		playsound(user, 'sound/weapons/saberon.ogg', 50, 1)
 		user << "\blue [src] is now active."
@@ -495,7 +463,7 @@
 /obj/structure/holohoop/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 	if (istype(mover,/obj/item) && mover.throwing)
 		var/obj/item/I = mover
-		if(istype(I, /obj/item/weapon/dummy) || istype(I, /obj/item/projectile))
+		if(istype(I, /obj/item/projectile))
 			return
 		if(prob(50))
 			I.loc = src.loc
@@ -508,7 +476,7 @@
 
 
 /obj/machinery/readybutton
-	name = "Ready Declaration Device"
+	name = "ready declaration device"
 	desc = "This device is used to declare ready. If all devices in an area are ready, the event will begin!"
 	icon = 'icons/obj/monitors.dmi'
 	icon_state = "auth_off"

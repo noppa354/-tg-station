@@ -10,9 +10,9 @@
 
 /mob/living/carbon/alien/humanoid/Life()
 	set invisibility = 0
-	set background = 1
+	set background = BACKGROUND_ENABLED
 
-	if (monkeyizing)
+	if (notransform)
 		return
 
 	..()
@@ -53,6 +53,8 @@
 	//stuff in the stomach
 	handle_stomach()
 
+	//Handle being on fire
+	handle_fire()
 
 	//Status updates, death etc.
 	handle_regular_status_updates()

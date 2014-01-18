@@ -97,7 +97,7 @@ var/const/AIRLOCK_WIRE_LIGHT = 2048
 				//Cutting this wire electrifies the door, so that the next person to touch the door without insulated gloves gets electrocuted.
 				if(A.secondsElectrified != -1)
 					A.shockedby += text("\[[time_stamp()]\][usr](ckey:[usr.ckey])")
-					usr.attack_log += text("\[[time_stamp()]\] <font color='red'>Electrified the [A.name] at [A.x] [A.y] [A.z]</font>")
+					add_logs(usr, A, "electrified", admin=0, addition="at [A.x],[A.y],[A.z]")
 					A.secondsElectrified = -1
 			else
 				if(A.secondsElectrified == -1)
@@ -125,7 +125,7 @@ var/const/AIRLOCK_WIRE_LIGHT = 2048
 		if(AIRLOCK_WIRE_IDSCAN)
 			//Sending a pulse through this flashes the red light on the door (if the door has power).
 			if((A.arePowerSystemsOn()) && (!(A.stat & NOPOWER)))
-				A.animate("deny")
+				A.do_animate("deny")
 		if(AIRLOCK_WIRE_MAIN_POWER1 || AIRLOCK_WIRE_MAIN_POWER2)
 			//Sending a pulse through either one causes a breaker to trip, disabling the door for 10 seconds if backup power is connected, or 1 minute if not (or until backup power comes back on, whichever is shorter).
 			A.loseMainPower()
@@ -163,7 +163,7 @@ var/const/AIRLOCK_WIRE_LIGHT = 2048
 			//one wire for electrifying the door. Sending a pulse through this electrifies the door for 30 seconds.
 			if(A.secondsElectrified==0)
 				A.shockedby += text("\[[time_stamp()]\][usr](ckey:[usr.ckey])")
-				usr.attack_log += text("\[[time_stamp()]\] <font color='red'>Electrified the [A.name] at [A.x] [A.y] [A.z]</font>")
+				add_logs(usr, A, "electrified", admin=0, addition="at [A.x],[A.y],[A.z]")
 				A.secondsElectrified = 30
 				spawn(10)
 					if(A)

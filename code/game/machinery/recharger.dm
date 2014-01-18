@@ -25,8 +25,6 @@
 		if (istype(G, /obj/item/weapon/gun/energy/gun/nuclear) || istype(G, /obj/item/weapon/gun/energy/crossbow))
 			user << "<span class='notice'>Your gun's recharge port was removed to make room for a miniaturized reactor.</span>"
 			return
-		if (istype(G, /obj/item/weapon/gun/energy/staff))
-			return
 		user.drop_item()
 		G.loc = src
 		charging = G
@@ -54,10 +52,16 @@
 		use_power = 1
 		update_icon()
 
-
 /obj/machinery/recharger/attack_paw(mob/user)
 	return attack_hand(user)
 
+/obj/machinery/recharger/attack_tk(mob/user)
+	if(charging)
+		charging.update_icon()
+		charging.loc = loc
+		charging = null
+		use_power = 1
+		update_icon()
 
 /obj/machinery/recharger/process()
 	if(stat & (NOPOWER|BROKEN) || !anchored)

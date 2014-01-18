@@ -67,14 +67,15 @@
 		sound = 1
 	else
 		var/obj/item/weapon/gun/energy/E=new installation	//All energy-based weapons are applicable
-		projectile = E.projectile_type
+		var/obj/item/ammo_casing/shottype = E.ammo_type[1]
+		projectile = shottype.projectile_type
 		eprojectile = projectile
 
 		switch(E.type)
 			if(/obj/item/weapon/gun/energy/laser/bluetag)
 				eprojectile = /obj/item/projectile/omnitag	//This bolt will stun ERRYONE with a vest
 				lasercolor = "b"
-				req_access = list(access_maint_tunnels,access_clown,access_mime)
+				req_access = list(access_maint_tunnels, access_theatre)
 				check_records = 0
 				criminals = 0
 				auth_weapons = 1
@@ -85,7 +86,7 @@
 			if(/obj/item/weapon/gun/energy/laser/redtag)
 				eprojectile = /obj/item/projectile/omnitag
 				lasercolor = "r"
-				req_access = list(access_maint_tunnels,access_clown,access_mime)
+				req_access = list(access_maint_tunnels, access_theatre)
 				check_records = 0
 				criminals = 0
 				auth_weapons = 1
@@ -272,14 +273,14 @@
 	else if((istype(I, /obj/item/weapon/wrench)) && (!on))
 		if(raised) return
 		//This code handles moving the turret around. After all, it's a portable turret!
-		if(!anchored)
+		if(!anchored && !isinspace())
 			anchored = 1
 			invisibility = INVISIBILITY_LEVEL_TWO
 			icon_state = "[lasercolor]grey_target_prism"
 			user << "<span class='notice'>You secure the exterior bolts on the turret.</span>"
 			cover = new /obj/machinery/porta_turret_cover(loc) //create a new turret. While this is handled in process(), this is to workaround a bug where the turret becomes invisible for a split second
 			cover.Parent_Turret = src //make the cover's parent src
-		else
+		else if(anchored)
 			anchored = 0
 			user << "<span class='notice'>You unsecure the exterior bolts on the turret.</span>"
 			icon_state = "turretCover"
@@ -378,7 +379,7 @@
 /obj/machinery/porta_turret/process()
 	//the main machinery process
 
-	set background = 1
+	set background = BACKGROUND_ENABLED
 
 	if(cover == null && anchored)	//if it has no cover and is anchored
 		if(stat & BROKEN)	//if the turret is borked
@@ -524,10 +525,10 @@
 			if(allowed(perp) && !lasercolor) //if the perp has security access, return 0
 				return 0
 
-			if((istype(perp.l_hand, /obj/item/weapon/gun) && !istype(perp.l_hand, /obj/item/weapon/gun/projectile/shotgun/doublebarrel)) || istype(perp.l_hand, /obj/item/weapon/melee/baton))
+			if((istype(perp.l_hand, /obj/item/weapon/gun) && !istype(perp.l_hand, /obj/item/weapon/gun/projectile/revolver/doublebarrel)) || istype(perp.l_hand, /obj/item/weapon/melee/baton))
 				threatcount += 4
 
-			if((istype(perp.r_hand, /obj/item/weapon/gun) && !istype(perp.r_hand, /obj/item/weapon/gun/projectile/shotgun/doublebarrel)) || istype(perp.r_hand, /obj/item/weapon/melee/baton))
+			if((istype(perp.r_hand, /obj/item/weapon/gun) && !istype(perp.r_hand, /obj/item/weapon/gun/projectile/revolver/doublebarrel)) || istype(perp.r_hand, /obj/item/weapon/melee/baton))
 				threatcount += 4
 
 			if(istype(perp.belt, /obj/item/weapon/gun) || istype(perp.belt, /obj/item/weapon/melee/baton))
@@ -811,6 +812,9 @@
 			user << "<span class='notice'>You remove the prox sensor from the turret frame.</span>"
 			new /obj/item/device/assembly/prox_sensor(loc)
 			build_step = 4
+
+/obj/machinery/porta_turret_construct/attack_ai()
+	return
 
 
 /************************

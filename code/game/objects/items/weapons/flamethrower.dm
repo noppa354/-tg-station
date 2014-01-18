@@ -4,7 +4,7 @@
 	icon = 'icons/obj/flamethrower.dmi'
 	icon_state = "flamethrowerbase"
 	item_state = "flamethrower_0"
-	flags = FPRINT | TABLEPASS| CONDUCT | USEDELAY // USEDELAY flag needed in order to use afterattack() for things that are not in reach. I.E: Shooting flames.
+	flags = CONDUCT
 	force = 3.0
 	throwforce = 10.0
 	throw_speed = 1
@@ -16,7 +16,6 @@
 	var/throw_amount = 100
 	var/lit = 0	//on or off
 	var/operating = 0//cooldown
-	var/turf/previousturf = null
 	var/obj/item/weapon/weldingtool/weldtool = null
 	var/obj/item/device/assembly/igniter/igniter = null
 	var/obj/item/weapon/tank/plasma/ptank = null
@@ -61,6 +60,7 @@
 	return
 
 /obj/item/weapon/flamethrower/afterattack(atom/target, mob/user, flag)
+	if(flag) return // too close
 	// Make sure our user is still holding us
 	if(user && user.get_active_hand() == src)
 		var/turf/target_turf = get_turf(target)
@@ -112,31 +112,7 @@
 		return
 
 	if(istype(W, /obj/item/device/analyzer) && ptank)
-		var/obj/item/weapon/icon = src
-		user.visible_message("<span class='notice'>[user] has used the analyzer on \icon[icon]</span>")
-		var/pressure = ptank.air_contents.return_pressure()
-		var/total_moles = ptank.air_contents.total_moles()
-
-		user << "\blue Results of analysis of \icon[icon]"
-		if(total_moles>0)
-			var/o2_concentration = ptank.air_contents.oxygen/total_moles
-			var/n2_concentration = ptank.air_contents.nitrogen/total_moles
-			var/co2_concentration = ptank.air_contents.carbon_dioxide/total_moles
-			var/plasma_concentration = ptank.air_contents.toxins/total_moles
-
-			var/unknown_concentration =  1-(o2_concentration+n2_concentration+co2_concentration+plasma_concentration)
-
-			user << "\blue Pressure: [round(pressure,0.1)] kPa"
-			user << "\blue Nitrogen: [round(n2_concentration*100)]%"
-			user << "\blue Oxygen: [round(o2_concentration*100)]%"
-			user << "\blue CO2: [round(co2_concentration*100)]%"
-			user << "\blue Plasma: [round(plasma_concentration*100)]%"
-			if(unknown_concentration>0.01)
-				user << "\red Unknown: [round(unknown_concentration*100)]%"
-			user << "\blue Temperature: [round(ptank.air_contents.temperature-T0C)]&deg;C"
-		else
-			user << "\blue Tank is empty!"
-		return
+		atmosanalyzer_scan(ptank.air_contents, user)
 	..()
 	return
 
@@ -187,17 +163,17 @@
 /obj/item/weapon/flamethrower/proc/flame_turf(turflist)
 	if(!lit || operating)	return
 	operating = 1
+	var/turf/previousturf = get_turf(src)
 	for(var/turf/simulated/T in turflist)
 		if(!T.air)
 			break
-		if(!previousturf && length(turflist)>1)
-			previousturf = get_turf(src)
+		if(T == previousturf)
 			continue	//so we don't burn the tile we be standin on
-		if(previousturf && LinkBlocked(previousturf, T))
+		if(!T.CanAtmosPass(previousturf))
 			break
 		ignite_turf(T)
 		sleep(1)
-	previousturf = null
+		previousturf = T
 	operating = 0
 	for(var/mob/M in viewers(1, loc))
 		if((M.client && M.machine == src))
@@ -226,4 +202,8 @@
 	igniter.secured = 0
 	status = 1
 	update_icon()
-	return
+
+/obj/item/weapon/flamethrower/full/tank/New(var/loc)
+	..()
+	ptank = new /obj/item/weapon/tank/plasma/full(src)
+	update_icon()

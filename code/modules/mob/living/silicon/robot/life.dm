@@ -1,8 +1,8 @@
 /mob/living/silicon/robot/Life()
 	set invisibility = 0
-	set background = 1
+	set background = BACKGROUND_ENABLED
 
-	if (src.monkeyizing)
+	if (src.notransform)
 		return
 
 
@@ -17,10 +17,8 @@
 		update_items()
 	if (src.stat != DEAD) //still using power
 		use_power()
-		process_killswitch()
-		process_locks()
 	update_canmove()
-
+	handle_fire()
 
 
 
@@ -286,25 +284,25 @@
 		src.module_state_3:screen_loc = ui_inv3
 
 
-/mob/living/silicon/robot/proc/process_killswitch()
-	if(killswitch)
-		killswitch_time --
-		if(killswitch_time <= 0)
-			if(src.client)
-				src << "\red <B>Killswitch Activated"
-			killswitch = 0
-			spawn(5)
-				gib()
+//Robots on fire
+/mob/living/silicon/robot/handle_fire()
+	if(..())
+		return
+	adjustFireLoss(3)
+	return
 
-/mob/living/silicon/robot/proc/process_locks()
-	if(weapon_lock)
-		uneq_all()
-		weaponlock_time --
-		if(weaponlock_time <= 0)
-			if(src.client)
-				src << "\red <B>Weapon Lock Timed Out!"
-			weapon_lock = 0
-			weaponlock_time = 120
+/mob/living/silicon/robot/update_fire()
+	overlays -= image("icon"='icons/mob/OnFire.dmi', "icon_state"="Standing")
+	if(on_fire)
+		overlays += image("icon"='icons/mob/OnFire.dmi', "icon_state"="Standing")
+	update_icons()
+	return
+
+/mob/living/silicon/robot/fire_act()
+	if(!on_fire) //Silicons don't gain stacks from hotspots, but hotspots can ignite them
+		IgniteMob()
+
+//Robots on fire
 
 /mob/living/silicon/robot/update_canmove()
 	if(paralysis || stunned || weakened || buckled || lockcharge) canmove = 0

@@ -95,9 +95,13 @@ datum
 			trans_to(var/obj/target, var/amount=1, var/multiplier=1, var/preserve_data=1)//if preserve_data=0, the reagents data will be lost. Usefull if you use data for some strange stuff and don't want it to be transferred.
 				if (!target )
 					return
-				if (!target.reagents || src.total_volume<=0)
-					return
-				var/datum/reagents/R = target.reagents
+				var/datum/reagents/R
+				if(istype(target,/datum/reagents/))
+					R = target
+				else
+					if (!target.reagents || src.total_volume<=0)
+						return
+					R = target.reagents
 				amount = min(min(amount, src.total_volume), R.maximum_volume-R.total_volume)
 				var/part = amount / src.total_volume
 				var/trans_data = null
@@ -269,8 +273,10 @@ datum
 									add_reagent(C.result, C.result_amount*multiplier)
 
 								var/list/seen = viewers(4, get_turf(my_atom))
-								for(var/mob/M in seen)
-									M << "\blue \icon[my_atom] The solution begins to bubble."
+
+								if(!istype(my_atom, /mob)) // No bubbling mobs
+									for(var/mob/M in seen)
+										M << "\blue \icon[my_atom] The solution begins to bubble."
 
 								if(istype(my_atom, /obj/item/slime_extract))
 									var/obj/item/slime_extract/ME2 = my_atom
@@ -278,7 +284,7 @@ datum
 									if(ME2.Uses <= 0) // give the notification that the slime core is dead
 										for(var/mob/M in seen)
 											M << "\blue \icon[my_atom] The [my_atom]'s power is consumed in the reaction."
-											ME2.name = "used slime extract"
+											ME2.name = "\improper used slime extract"
 											ME2.desc = "This extract has been used up."
 
 								playsound(get_turf(my_atom), 'sound/effects/bubbles.ogg', 80, 1)

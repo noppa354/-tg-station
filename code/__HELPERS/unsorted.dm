@@ -236,7 +236,7 @@ Turf and target are seperate in case you want to teleport some distance from a t
 
 
 
-//This will update a mob's name, real_name, mind.name, data_core records, pda and id
+//This will update a mob's name, real_name, mind.name, data_core records, pda, id and traitor text
 //Calling this proc without an oldname will only update the mob and skip updating the pda, id and records ~Carn
 /mob/proc/fully_replace_character_name(var/oldname,var/newname)
 	if(!newname)	return 0
@@ -276,6 +276,13 @@ Turf and target are seperate in case you want to teleport some distance from a t
 					PDA.name = "PDA-[newname] ([PDA.ownjob])"
 					if(!search_id)	break
 					search_pda = 0
+
+		for(var/datum/mind/T in ticker.minds)
+			for(var/datum/objective/obj in T.objectives)
+				// Only update if this player is a target
+				if(obj.target && obj.target.current.real_name == name)
+					obj.update_explanation_text()
+
 	return 1
 
 
@@ -330,7 +337,7 @@ Turf and target are seperate in case you want to teleport some distance from a t
 
 //Picks a string of symbols to display as the law number for hacked or ion laws
 /proc/ionnum()
-	return "[pick("!","@","#","$","%","^","&","*")][pick("!","@","#","$","%","^","&","*")][pick("!","@","#","$","%","^","&","*")][pick("!","@","#","$","%","^","&","*")]"
+	return "[pick("!","@","#","$","%","^","&")][pick("!","@","#","$","%","^","&","*")][pick("!","@","#","$","%","^","&","*")][pick("!","@","#","$","%","^","&","*")]"
 
 //Returns a list of unslaved cyborgs
 /proc/active_free_borgs()
@@ -894,11 +901,13 @@ proc/anim(turf/location as turf,target as mob|obj,a_icon,a_icon_state as text,fl
 
 	if(toupdate.len)
 		for(var/turf/simulated/T1 in toupdate)
+			air_master.remove_from_active(T1)
 			T1.CalculateAdjacentTurfs()
 			air_master.add_to_active(T1,1)
 
 	if(fromupdate.len)
 		for(var/turf/simulated/T2 in fromupdate)
+			air_master.remove_from_active(T2)
 			T2.CalculateAdjacentTurfs()
 			air_master.add_to_active(T2,1)
 
@@ -1220,3 +1229,44 @@ var/list/WALLITEMS = list(
 
 /proc/format_text(text)
 	return replacetext(replacetext(text,"\proper ",""),"\improper ","")
+
+/obj/proc/atmosanalyzer_scan(var/datum/gas_mixture/air_contents, mob/user, var/obj/target = src)
+	var/obj/icon = target
+	user.visible_message("\red [user] has used the analyzer on \icon[icon] [target].</span>")
+	var/pressure = air_contents.return_pressure()
+	var/total_moles = air_contents.total_moles()
+
+	user << "\blue Results of analysis of \icon[icon] [target]."
+	if(total_moles>0)
+		var/o2_concentration = air_contents.oxygen/total_moles
+		var/n2_concentration = air_contents.nitrogen/total_moles
+		var/co2_concentration = air_contents.carbon_dioxide/total_moles
+		var/plasma_concentration = air_contents.toxins/total_moles
+
+		var/unknown_concentration =  1-(o2_concentration+n2_concentration+co2_concentration+plasma_concentration)
+
+		user << "\blue Pressure: [round(pressure,0.1)] kPa"
+		user << "\blue Nitrogen: [round(n2_concentration*100)]%"
+		user << "\blue Oxygen: [round(o2_concentration*100)]%"
+		user << "\blue CO2: [round(co2_concentration*100)]%"
+		user << "\blue Plasma: [round(plasma_concentration*100)]%"
+		if(unknown_concentration>0.01)
+			user << "\red Unknown: [round(unknown_concentration*100)]%"
+		user << "\blue Temperature: [round(air_contents.temperature-T0C)]&deg;C"
+	else
+		user << "\blue [target] is empty!"
+	return
+
+proc/check_target_facings(mob/living/initator, mob/living/target)
+	/*This can be used to add additional effects on interactions between mobs depending on how the mobs are facing each other, such as adding a crit damage to blows to the back of a guy's head.
+	Given how click code currently works (Nov '13), the initiating mob will be facing the target mob most of the time
+	That said, this proc should not be used if the change facing proc of the click code is overriden at the same time*/
+	if(!ismob(target) || target.lying)
+	//Make sure we are not doing this for things that can't have a logical direction to the players given that the target would be on their side
+		return
+	if(initator.dir == target.dir) //mobs are facing the same direction
+		return 1
+	if(initator.dir + 4 == target.dir || initator.dir - 4 == target.dir) //mobs are facing each other
+		return 2
+	if(initator.dir + 2 == target.dir || initator.dir - 2 == target.dir || initator.dir + 6 == target.dir || initator.dir - 6 == target.dir) //Initating mob is looking at the target, while the target mob is looking in a direction perpendicular to the 1st
+		return 3

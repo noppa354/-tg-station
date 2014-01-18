@@ -30,9 +30,9 @@
 		return
 
 	Move()
-		air_update_turf(1)
+		var/turf/T = loc
 		..()
-		air_update_turf(1)
+		move_update_air(T)
 
 	Bumped(atom/user)
 		..()
@@ -218,7 +218,7 @@
 			TemperatureAct(exposed_temperature)
 
 	proc/TemperatureAct(temperature)
-		atmos_spawn_air("fire", 500)
+		atmos_spawn_air(SPAWN_HEAT | SPAWN_TOXINS, 500)
 		hardness = 0
 		CheckHardness()
 

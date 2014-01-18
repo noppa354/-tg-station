@@ -3,7 +3,7 @@
 	name = "black jumpsuit"
 	icon_state = "black"
 	item_state = "bl_suit"
-	color = "black"
+	item_color = "black"
 	desc = "It's a plain jumpsuit. It seems to have a small dial on the wrist."
 	origin_tech = "syndicate=3"
 	var/list/clothing_choices = list()
@@ -37,12 +37,21 @@
 		name = "psychedelic"
 		desc = "Groovy!"
 		icon_state = "psyche"
-		color = "psyche"
+		item_color = "psyche"
+		if(ismob(loc))
+			var/mob/M = loc
+			M.update_inv_w_uniform()
+			M << "<span class='notice'>Your jumpsuit malfunctions!</span>"
 		spawn(200)
 			name = "Black Jumpsuit"
-			icon_state = "bl_suit"
-			color = "black"
+			icon_state = "black"
+			item_state = "bl_suit"
+			item_color = "black"
 			desc = null
+			if(ismob(loc))
+				var/mob/M = loc
+				M.update_inv_w_uniform()
+				M << "<span class='notice'>Your jumpsuit is functioning normally again.</span>"
 		..()
 
 
@@ -67,7 +76,7 @@
 		name = A.name
 		icon_state = A.icon_state
 		item_state = A.item_state
-		color = A.color
+		item_color = A.item_color
 		usr.update_inv_w_uniform()	//so our overlays update.
 
 

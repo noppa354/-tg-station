@@ -18,7 +18,7 @@ var/list/ai_list = list()
 	icon_state = "ai"
 	anchored = 1 // -- TLE
 	density = 1
-	status_flags = CANSTUN|CANPARALYSE
+	status_flags = CANSTUN|CANPARALYSE|CANPUSH
 	var/list/network = list("SS13")
 	var/obj/machinery/camera/current = null
 	var/list/connected_robots = list()
@@ -29,6 +29,7 @@ var/list/ai_list = list()
 	var/icon/holo_icon//Default is assigned when AI is created.
 	var/obj/item/device/pda/ai/aiPDA = null
 	var/obj/item/device/multitool/aiMulti = null
+	var/obj/item/device/camera/ai_camera/aicamera = null
 
 	//MALFUNCTION
 	var/datum/module_picker/malf_picker
@@ -49,6 +50,7 @@ var/list/ai_list = list()
 
 	var/last_paper_seen = null
 	var/can_shunt = 1
+	var/last_announcement = "" // For AI VOX, if enabled
 
 /mob/living/silicon/ai/New(loc, var/datum/ai_laws/L, var/obj/item/device/mmi/B, var/safety = 0)
 	var/list/possibleNames = ai_names
@@ -74,7 +76,7 @@ var/list/ai_list = list()
 		if (istype(L, /datum/ai_laws))
 			laws = L
 	else
-		laws = new /datum/ai_laws/asimov
+		make_laws()
 
 	verbs += /mob/living/silicon/ai/proc/show_laws_verb
 
@@ -84,6 +86,7 @@ var/list/ai_list = list()
 	aiPDA.name = name + " (" + aiPDA.ownjob + ")"
 
 	aiMulti = new(src)
+	aicamera = new/obj/item/device/camera/ai_camera(src)
 
 	if (istype(loc, /turf))
 		verbs.Add(/mob/living/silicon/ai/proc/ai_call_shuttle,/mob/living/silicon/ai/proc/ai_camera_track, \
@@ -221,6 +224,10 @@ var/list/ai_list = list()
 	src << browse(dat, "window=airoster")
 	onclose(src, "airoster")
 
+/mob/living/silicon/ai/verb/ai_crew()
+	set category = "AI Commands"
+	set name = "Crew Monitoring Console"
+	crewmonitor(src)
 /mob/living/silicon/ai/proc/ai_call_shuttle()
 	set category = "AI Commands"
 	set name = "Call Emergency Shuttle"
@@ -245,6 +252,19 @@ var/list/ai_list = list()
 			C.post_status("shuttle")
 
 	return
+
+/mob/living/silicon/ai/verb/toggle_anchor()
+        set category = "AI Commands"
+        set name = "Toggle Floor Bolts"
+        if(!isturf(loc)) // if their location isn't a turf
+                return // stop
+        anchored = !anchored // Toggles the anchor
+
+        src << "[anchored ? "<b>You are now anchored.</b>" : "<b>You are now unanchored.</b>"]"
+        // the message in the [] will change depending whether or not the AI is anchored
+
+/mob/living/silicon/ai/update_canmove() //If the AI dies, mobs won't go through it anymore
+	return 0
 
 /mob/living/silicon/ai/proc/ai_cancel_call()
 	set category = "AI Commands"
@@ -285,14 +305,11 @@ var/list/ai_list = list()
 	..()
 
 /mob/living/silicon/ai/ex_act(severity)
-	if(!blinded)
-		flick("flash", flash)
+	..()
 
 	switch(severity)
 		if(1.0)
-			if (stat != 2)
-				adjustBruteLoss(100)
-				adjustFireLoss(100)
+			gib()
 		if(2.0)
 			if (stat != 2)
 				adjustBruteLoss(60)
@@ -301,7 +318,7 @@ var/list/ai_list = list()
 			if (stat != 2)
 				adjustBruteLoss(30)
 
-	updatehealth()
+	return
 
 
 /mob/living/silicon/ai/Topic(href, href_list)
@@ -318,6 +335,11 @@ var/list/ai_list = list()
 		switchCamera(locate(href_list["switchcamera"])) in cameranet.cameras
 	if (href_list["showalerts"])
 		ai_alerts()
+#ifdef AI_VOX
+	if(href_list["say_word"])
+		play_vox_word(href_list["say_word"], null, src)
+		return
+#endif
 	if(href_list["show_paper"])
 		if(last_paper_seen)
 			src << browse(last_paper_seen, "window=show_paper")
@@ -329,7 +351,6 @@ var/list/ai_list = list()
 				H.attack_ai(src) //may as well recycle
 			else
 				src << "<span class='notice'>Unable to locate the holopad.</span>"
-
 	if (href_list["track"])
 		var/mob/target = locate(href_list["track"]) in mob_list
 		var/mob/living/silicon/ai/A = locate(href_list["track2"]) in mob_list
@@ -406,16 +427,6 @@ var/list/ai_list = list()
 						O.show_message(text("\red <B>[] took a swipe at []!</B>", M, src), 1)
 	return
 
-/mob/living/silicon/ai/attack_hand(mob/living/carbon/M as mob)
-	if(ishuman(M))//Checks to see if they are ninja
-		if(istype(M:gloves, /obj/item/clothing/gloves/space_ninja)&&M:gloves:candrain&&!M:gloves:draining)
-			if(M:wear_suit:s_control)
-				M:wear_suit:transfer_ai("AICORE", "NINJASUIT", src, M)
-			else
-				M << "\red <b>ERROR</b>: \black Remote access channel disabled."
-	return
-
-
 /mob/living/silicon/ai/attack_animal(mob/living/simple_animal/M as mob)
 	if(M.melee_damage_upper == 0)
 		M.emote("[M.friendly] [src]")
@@ -424,8 +435,7 @@ var/list/ai_list = list()
 			playsound(loc, M.attack_sound, 50, 1, 1)
 		for(var/mob/O in viewers(src, null))
 			O.show_message("\red <B>[M]</B> [M.attacktext] [src]!", 1)
-		M.attack_log += text("\[[time_stamp()]\] <font color='red'>attacked [src.name] ([src.ckey])</font>")
-		src.attack_log += text("\[[time_stamp()]\] <font color='orange'>was attacked by [M.name] ([M.ckey])</font>")
+		add_logs(M, src, "attacked", admin=0)
 		var/damage = rand(M.melee_damage_lower, M.melee_damage_upper)
 		adjustBruteLoss(damage)
 		updatehealth()
@@ -577,7 +587,7 @@ var/list/ai_list = list()
 	if(usr.stat == 2)
 		usr <<"You cannot change your emotional status because you are dead!"
 		return
-	var/list/ai_emotions = list("Very Happy", "Happy", "Neutral", "Unsure", "Confused", "Sad", "BSOD", "Blank", "Problems?", "Awesome", "Facepalm", "Friend Computer")
+	var/list/ai_emotions = list("Very Happy", "Happy", "Neutral", "Unsure", "Confused", "Sad", "BSOD", "Blank", "Problems?", "Awesome", "Facepalm", "Friend Computer", "Dorfy", "Blue Glow", "Red Glow")
 	var/emote = input("Please, select a status!", "AI Status", null, null) in ai_emotions
 	for (var/obj/machinery/M in machines) //change status
 		if(istype(M, /obj/machinery/ai_status_display))

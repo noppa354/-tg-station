@@ -402,7 +402,7 @@
 	. += "<h2>Crew Manifest</h2><br><br>"
 	if(data_core.general)
 		for(var/datum/data/record/t in sortRecord(data_core.general))
-			. += "[t.fields["name"]] - [t.fields["rank"]]"
+			. += "[t.fields["name"]] - [t.fields["rank"]]<BR>"
 	. += "</body></html>"
 	return .
 
@@ -486,11 +486,11 @@
 		var/mob/living/M = card.loc
 		if(!istype(M, /mob/living))
 			while (!istype(M, /mob/living))
-				M = M.loc
 				if(istype(M, /turf))
 					src.temp = "Error: No biological host found. <br>"
 					src.subscreen = 0
 					return dat
+				M = M.loc
 		dat += {"Bioscan Results for [M]: <br>"
 		Overall Status: [M.stat > 1 ? "dead" : "[M.health]% healthy"] <br>
 		Scan Breakdown: <br>

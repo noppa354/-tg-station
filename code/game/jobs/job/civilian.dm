@@ -176,7 +176,7 @@
 
 
 
-//Griff
+
 /datum/job/clown
 	title = "Clown"
 	flag = CLOWN
@@ -186,12 +186,13 @@
 	spawn_positions = 1
 	supervisors = "the head of personnel"
 	selection_color = "#dddddd"
-	access = list(access_clown, access_theatre, access_maint_tunnels)
-	minimal_access = list(access_clown, access_theatre)
+	access = list(access_theatre, access_maint_tunnels)
+	minimal_access = list(access_theatre)
 
 
 	equip(var/mob/living/carbon/human/H)
 		if(!H)	return 0
+		H.fully_replace_character_name(H.real_name, pick(clown_names))
 		H.equip_to_slot_or_del(new /obj/item/weapon/storage/backpack/clown(H), slot_back)
 		H.equip_to_slot_or_del(new /obj/item/weapon/storage/box/survival(H.back), slot_in_backpack)
 		H.equip_to_slot_or_del(new /obj/item/clothing/under/rank/clown(H), slot_w_uniform)
@@ -202,9 +203,9 @@
 		H.equip_to_slot_or_del(new /obj/item/weapon/bikehorn(H), slot_in_backpack)
 		H.equip_to_slot_or_del(new /obj/item/weapon/stamp/clown(H), slot_in_backpack)
 		H.equip_to_slot_or_del(new /obj/item/toy/crayon/rainbow(H), slot_in_backpack)
-		H.equip_to_slot_or_del(new /obj/item/weapon/storage/fancy/crayons(H), slot_in_backpack)
 		H.equip_to_slot_or_del(new /obj/item/weapon/reagent_containers/spray/waterflower(H), slot_in_backpack)
 		H.mutations.Add(CLUMSY)
+		H.rename_self("clown")
 		return 1
 
 
@@ -218,8 +219,8 @@
 	spawn_positions = 1
 	supervisors = "the head of personnel"
 	selection_color = "#dddddd"
-	access = list(access_mime, access_theatre, access_maint_tunnels)
-	minimal_access = list(access_mime, access_theatre)
+	access = list(access_theatre, access_maint_tunnels)
+	minimal_access = list(access_theatre)
 
 
 	equip(var/mob/living/carbon/human/H)
@@ -241,11 +242,10 @@
 			H.equip_to_slot_or_del(new /obj/item/weapon/storage/box/survival(H.back), slot_in_backpack)
 			H.equip_to_slot_or_del(new /obj/item/toy/crayon/mime(H), slot_in_backpack)
 			H.equip_to_slot_or_del(new /obj/item/weapon/reagent_containers/food/drinks/bottle/bottleofnothing(H), slot_in_backpack)
-		H.verbs += /client/proc/mimespeak
-		H.verbs += /client/proc/mimewall
-		H.mind.special_verbs += /client/proc/mimespeak
-		H.mind.special_verbs += /client/proc/mimewall
+		H.spell_list += new /obj/effect/proc_holder/spell/aoe_turf/conjure/mime_wall(H)
+		H.spell_list += new /obj/effect/proc_holder/spell/targeted/mime/speak(H)
 		H.miming = 1
+		H.rename_self("mime")
 		return 1
 
 
@@ -266,6 +266,7 @@
 	equip(var/mob/living/carbon/human/H)
 		if(!H)	return 0
 		H.equip_to_slot_or_del(new /obj/item/clothing/under/rank/janitor(H), slot_w_uniform)
+		H.equip_to_slot_or_del(new /obj/item/device/radio/headset/headset_srv(H), slot_ears)
 		H.equip_to_slot_or_del(new /obj/item/clothing/shoes/black(H), slot_shoes)
 		H.equip_to_slot_or_del(new /obj/item/device/pda/janitor(H), slot_belt)
 		return 1

@@ -5,8 +5,8 @@
 #define HUMAN_CRIT_MAX_OXYLOSS ( (last_tick_duration) /3) //The amount of damage you'll get when in critical condition. We want this to be a 5 minute deal = 300s. There are 100HP to get through, so (1/3)*last_tick_duration per second. Breaths however only happen every 4 ticks.
 
 #define HEAT_DAMAGE_LEVEL_1 2 //Amount of damage applied when your body temperature just passes the 360.15k safety point
-#define HEAT_DAMAGE_LEVEL_2 4 //Amount of damage applied when your body temperature passes the 400K point
-#define HEAT_DAMAGE_LEVEL_3 8 //Amount of damage applied when your body temperature passes the 1000K point
+#define HEAT_DAMAGE_LEVEL_2 3 //Amount of damage applied when your body temperature passes the 400K point
+#define HEAT_DAMAGE_LEVEL_3 8 //Amount of damage applied when your body temperature passes the 460K point and you are on fire
 
 #define COLD_DAMAGE_LEVEL_1 0.5 //Amount of damage applied when your body temperature just passes the 260.15k safety point
 #define COLD_DAMAGE_LEVEL_2 1.5 //Amount of damage applied when your body temperature passes the 200K point
@@ -36,9 +36,9 @@
 
 /mob/living/carbon/human/Life()
 	set invisibility = 0
-	set background = 1
+	set background = BACKGROUND_ENABLED
 
-	if (monkeyizing)	return
+	if (notransform)	return
 	if(!loc)			return	// Fixing a null error that occurs when the mob isn't found in the world -- TLE
 
 	..()
@@ -82,6 +82,9 @@
 
 	//Handle temperature/pressure differences between body and environment
 	handle_environment(environment)
+
+	//Check if we're on fire
+	handle_fire()
 
 	//stuff in the stomach
 	handle_stomach()
@@ -444,8 +447,8 @@
 	proc/handle_environment(datum/gas_mixture/environment)
 		if(!environment)
 			return
-		var/loc_temp = get_temperature(environment)
 
+		var/loc_temp = get_temperature(environment)
 		//world << "Loc temp: [loc_temp] - Body temp: [bodytemperature] - Fireloss: [getFireLoss()] - Thermal protection: [get_thermal_protection()] - Fire protection: [thermal_protection + add_fire_protection(loc_temp)] - Heat capacity: [environment_heat_capacity] - Location: [loc] - src: [src]"
 
 		//Body temperature is adjusted in two steps. Firstly your body tries to stabilize itself a bit.
@@ -453,16 +456,17 @@
 			stabilize_temperature_from_calories()
 
 		//After then, it reacts to the surrounding atmosphere based on your thermal protection
-		if(loc_temp < bodytemperature)
-			//Place is colder than we are
-			var/thermal_protection = get_cold_protection(loc_temp) //This returns a 0 - 1 value, which corresponds to the percentage of protection based on what you're wearing and what you're exposed to.
-			if(thermal_protection < 1)
-				bodytemperature += min((1-thermal_protection) * ((loc_temp - bodytemperature) / BODYTEMP_COLD_DIVISOR), BODYTEMP_COOLING_MAX)
-		else
-			//Place is hotter than we are
-			var/thermal_protection = get_heat_protection(loc_temp) //This returns a 0 - 1 value, which corresponds to the percentage of protection based on what you're wearing and what you're exposed to.
-			if(thermal_protection < 1)
-				bodytemperature += min((1-thermal_protection) * ((loc_temp - bodytemperature) / BODYTEMP_HEAT_DIVISOR), BODYTEMP_HEATING_MAX)
+		if(!on_fire) //If you're on fire, you do not heat up or cool down based on surrounding gases
+			if(loc_temp < bodytemperature)
+				//Place is colder than we are
+				var/thermal_protection = get_cold_protection(loc_temp) //This returns a 0 - 1 value, which corresponds to the percentage of protection based on what you're wearing and what you're exposed to.
+				if(thermal_protection < 1)
+					bodytemperature += min((1-thermal_protection) * ((loc_temp - bodytemperature) / BODYTEMP_COLD_DIVISOR), BODYTEMP_COOLING_MAX)
+			else
+				//Place is hotter than we are
+				var/thermal_protection = get_heat_protection(loc_temp) //This returns a 0 - 1 value, which corresponds to the percentage of protection based on what you're wearing and what you're exposed to.
+				if(thermal_protection < 1)
+					bodytemperature += min((1-thermal_protection) * ((loc_temp - bodytemperature) / BODYTEMP_HEAT_DIVISOR), BODYTEMP_HEATING_MAX)
 
 		// +/- 50 degrees from 310.15K is the 'safe' zone, where no damage is dealt.
 		if(bodytemperature > BODYTEMP_HEAT_DAMAGE_LIMIT)
@@ -472,12 +476,16 @@
 				if(360 to 400)
 					apply_damage(HEAT_DAMAGE_LEVEL_1, BURN)
 					fire_alert = max(fire_alert, 2)
-				if(400 to 1000)
+				if(400 to 460)
 					apply_damage(HEAT_DAMAGE_LEVEL_2, BURN)
 					fire_alert = max(fire_alert, 2)
-				if(1000 to INFINITY)
-					apply_damage(HEAT_DAMAGE_LEVEL_3, BURN)
-					fire_alert = max(fire_alert, 2)
+				if(460 to INFINITY)
+					if(on_fire)
+						apply_damage(HEAT_DAMAGE_LEVEL_3, BURN)
+						fire_alert = max(fire_alert, 2)
+					else
+						apply_damage(HEAT_DAMAGE_LEVEL_2, BURN)
+						fire_alert = max(fire_alert, 2)
 
 		else if(bodytemperature < BODYTEMP_COLD_DAMAGE_LIMIT)
 			fire_alert = max(fire_alert, 1)
@@ -516,6 +524,16 @@
 					pressure_alert = -1
 
 		return
+
+///FIRE CODE
+	handle_fire()
+		if(..())
+			return
+		var/thermal_protection = get_heat_protection(30000) //If you don't have fire suit level protection, you get a temperature increase
+		if((1 - thermal_protection) > 0.0001)
+			bodytemperature += BODYTEMP_HEATING_MAX
+		return
+//END FIRE CODE
 
 	/*
 	proc/adjust_body_temperature(current, loc_temp, boost)
@@ -928,68 +946,69 @@
 		if(stat == UNCONSCIOUS)
 			//Critical damage passage overlay
 			if(health <= config.health_threshold_crit)
-				var/image/I
+				var/image/I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage0")
+				I.blend_mode = BLEND_OVERLAY //damageoverlay is BLEND_MULTIPLY
 				switch(health)
 					if(-20 to -10)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage1")
+						I.icon_state = "passage1"
 					if(-30 to -20)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage2")
+						I.icon_state = "passage2"
 					if(-40 to -30)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage3")
+						I.icon_state = "passage3"
 					if(-50 to -40)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage4")
+						I.icon_state = "passage4"
 					if(-60 to -50)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage5")
+						I.icon_state = "passage5"
 					if(-70 to -60)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage6")
+						I.icon_state = "passage6"
 					if(-80 to -70)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage7")
+						I.icon_state = "passage7"
 					if(-90 to -80)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage8")
+						I.icon_state = "passage8"
 					if(-95 to -90)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage9")
+						I.icon_state = "passage9"
 					if(-INFINITY to -95)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "passage10")
+						I.icon_state = "passage10"
 				damageoverlay.overlays += I
 		else
 			//Oxygen damage overlay
 			if(oxyloss)
-				var/image/I
+				var/image/I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "oxydamageoverlay0")
 				switch(oxyloss)
 					if(10 to 20)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "oxydamageoverlay1")
+						I.icon_state = "oxydamageoverlay1"
 					if(20 to 25)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "oxydamageoverlay2")
+						I.icon_state = "oxydamageoverlay2"
 					if(25 to 30)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "oxydamageoverlay3")
+						I.icon_state = "oxydamageoverlay3"
 					if(30 to 35)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "oxydamageoverlay4")
+						I.icon_state = "oxydamageoverlay4"
 					if(35 to 40)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "oxydamageoverlay5")
+						I.icon_state = "oxydamageoverlay5"
 					if(40 to 45)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "oxydamageoverlay6")
+						I.icon_state = "oxydamageoverlay6"
 					if(45 to INFINITY)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "oxydamageoverlay7")
+						I.icon_state = "oxydamageoverlay7"
 				damageoverlay.overlays += I
 
 			//Fire and Brute damage overlay (BSSR)
 			var/hurtdamage = src.getBruteLoss() + src.getFireLoss() + damageoverlaytemp
 			damageoverlaytemp = 0 // We do this so we can detect if someone hits us or not.
 			if(hurtdamage)
-				var/image/I
+				var/image/I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "brutedamageoverlay0")
 				switch(hurtdamage)
-					if(10 to 25)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "brutedamageoverlay1")
-					if(25 to 40)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "brutedamageoverlay2")
+					if(35 to 45)
+						I.icon_state = "brutedamageoverlay1"
+					if(45 to 55)
+						I.icon_state = "brutedamageoverlay2"
 					if(40 to 55)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "brutedamageoverlay3")
-					if(55 to 70)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "brutedamageoverlay4")
-					if(70 to 85)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "brutedamageoverlay5")
+						I.icon_state = "brutedamageoverlay3"
+					if(55 to 65)
+						I.icon_state = "brutedamageoverlay4"
+					if(65 to 75)
+						I.icon_state = "brutedamageoverlay5"
 					if(85 to INFINITY)
-						I = image("icon" = 'icons/mob/screen_full.dmi', "icon_state" = "brutedamageoverlay6")
+						I.icon_state = "brutedamageoverlay6"
 				damageoverlay.overlays += I
 
 		if( stat == DEAD )
@@ -1190,12 +1209,6 @@
 
 					// make it so you can only puke so fast
 					lastpuke = 0
-
-		//0.1% chance of playing a scary sound to someone who's in complete darkness
-		if(isturf(loc) && rand(1,1000) == 1)
-			var/turf/currentTurf = loc
-			if(!currentTurf.lighting_lumcount)
-				playsound_local(src,pick(scarySounds),50, 1, -1)
 
 	proc/handle_stomach()
 		spawn(0)

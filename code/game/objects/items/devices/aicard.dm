@@ -4,7 +4,6 @@
 	icon_state = "aicard" // aicard-full
 	item_state = "electronic"
 	w_class = 2.0
-	flags = FPRINT | TABLEPASS
 	slot_flags = SLOT_BELT
 	var/flush = null
 	origin_tech = "programming=4;materials=4"
@@ -14,11 +13,7 @@
 		if(!istype(M, /mob/living/silicon/ai))//If target is not an AI.
 			return ..()
 
-		M.attack_log += text("\[[time_stamp()]\] <font color='orange'>Has been carded with [src.name] by [user.name] ([user.ckey])</font>")
-		user.attack_log += text("\[[time_stamp()]\] <font color='red'>Used the [src.name] to card [M.name] ([M.ckey])</font>")
-
-		log_attack("<font color='red'>[user.name] ([user.ckey]) used the [src.name] to card [M.name] ([M.ckey])</font>")
-
+		add_logs(user, M, "carded", object="[src.name]")
 
 		transfer_ai("AICORE", "AICARD", M, user)
 		return
@@ -39,14 +34,15 @@
 		for(var/mob/living/silicon/ai/A in src)
 			dat += "Stored AI: [A.name]<br>System integrity: [(A.health+100)/2]%<br>"
 
+			if (A.laws.zeroth)
+				laws += "0: [A.laws.zeroth]<BR>"
+
 			for (var/index = 1, index <= A.laws.ion.len, index++)
 				var/law = A.laws.ion[index]
 				if (length(law) > 0)
 					var/num = ionnum()
-					laws += "[num]. [law]"
+					laws += "[num]. [law]<BR>"
 
-			if (A.laws.zeroth)
-				laws += "0: [A.laws.zeroth]<BR>"
 
 			var/number = 1
 			for (var/index = 1, index <= A.laws.inherent.len, index++)

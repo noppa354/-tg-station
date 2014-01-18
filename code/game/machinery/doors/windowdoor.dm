@@ -93,7 +93,7 @@
 	src.density = 0
 //	src.sd_SetOpacity(0)	//TODO: why is this here? Opaque windoors? ~Carn
 	air_update_turf(1)
-	update_freelok_sight()
+	update_freelook_sight()
 
 	if(operating == 1) //emag again
 		src.operating = 0
@@ -112,7 +112,7 @@
 //	if(src.visible)
 //		SetOpacity(1)	//TODO: why is this here? Opaque windoors? ~Carn
 	air_update_turf(1)
-	update_freelok_sight()
+	update_freelook_sight()
 	sleep(10)
 
 	src.operating = 0
@@ -153,7 +153,7 @@
 	return src.attack_hand(user)
 
 /obj/machinery/door/window/attack_paw(mob/user as mob)
-	if(istype(user, /mob/living/carbon/alien/humanoid) || istype(user, /mob/living/carbon/slime/adult))
+	if(istype(user, /mob/living/carbon/alien/humanoid) || istype(user, /mob/living/carbon/slime/))
 		if(src.operating)
 			return
 		src.health = max(0, src.health - 25)
@@ -228,7 +228,7 @@
 
 
 /obj/machinery/door/window/brigdoor
-	name = "Secure Door"
+	name = "secure door"
 	icon = 'icons/obj/doors/windoor.dmi'
 	icon_state = "leftsecure"
 	base_state = "leftsecure"
